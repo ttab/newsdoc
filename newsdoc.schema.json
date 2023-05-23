@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ttab/newsdoc/document",
+  "$ref": "#/$defs/Document",
+  "$defs": {
+    "Block": {
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID is the block ID,"
+        },
+        "uuid": {
+          "type": "string",
+          "description": "UUID is used to reference another Document in a block.",
+          "format": "uuid"
+        },
+        "uri": {
+          "type": "string",
+          "description": "URI is used to reference another entity in a document.",
+          "format": "uri"
+        },
+        "url": {
+          "type": "string",
+          "description": "URL is a browseable URL for the the block.",
+          "format": "uri"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type is the type of the block"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title is the title/headline of the block, typically used in the presentation of the block."
+        },
+        "data": {
+          "$ref": "#/$defs/DataMap",
+          "description": "Data contains block data."
+        },
+        "rel": {
+          "type": "string",
+          "description": "Rel describes the relationship to the document/parent entity."
+        },
+        "role": {
+          "type": "string",
+          "description": "Role is used either as an alternative to rel, or for nuancing the relationship."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name is a name for the block. An alternative to \"rel\" when relationship is a term that doesn't fit."
+        },
+        "value": {
+          "type": "string",
+          "description": "Value is a value for the block. Useful when we want to store a primitive value."
+        },
+        "contenttype": {
+          "type": "string",
+          "description": "ContentType is used to describe the content type of the block/linked entity if it differs from the type of the block."
+        },
+        "links": {
+          "items": {
+            "$ref": "#/$defs/Block"
+          },
+          "type": "array",
+          "description": "Links are used to link to other resources and documents."
+        },
+        "content": {
+          "items": {
+            "$ref": "#/$defs/Block"
+          },
+          "type": "array",
+          "description": "Content is used to embed content blocks."
+        },
+        "meta": {
+          "items": {
+            "$ref": "#/$defs/Block"
+          },
+          "type": "array",
+          "description": "Meta is used to embed metadata"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "description": "Block is the building block for data embedded in documents."
+    },
+    "DataMap": {
+      "patternProperties": {
+        ".*": {
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "description": "DataMap is used as key -\u003e (string) value data for blocks."
+    },
+    "Document": {
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "description": "UUID is a unique ID for the document, this can for example be a random v4 UUID, or a URI-derived v5 UUID.",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type is the content type of the document."
+        },
+        "uri": {
+          "type": "string",
+          "description": "URI identifies the document (in a more human-readable way than the UUID).",
+          "format": "uri"
+        },
+        "url": {
+          "type": "string",
+          "description": "URL is the browseable location of the document (if any).",
+          "format": "uri"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title is the title of the document, can be used as the document name, or the headline when the document is displayed."
+        },
+        "content": {
+          "items": {
+            "$ref": "#/$defs/Block"
+          },
+          "type": "array",
+          "description": "Content is the content of the document, this is essentially what gets rendered on the page when you view a document."
+        },
+        "meta": {
+          "items": {
+            "$ref": "#/$defs/Block"
+          },
+          "type": "array",
+          "description": "Meta is the metadata for a document, this could be things like teasers, open graph data, newsvalues."
+        },
+        "links": {
+          "items": {
+            "$ref": "#/$defs/Block"
+          },
+          "type": "array",
+          "description": "Links are links to other resources and entities. This could be links to topics, categories and subjects for the document, or credited authors."
+        },
+        "language": {
+          "type": "string",
+          "description": "Language is the language used in the document as an IETF language tag. F.ex. \"en\", \"en-UK\", \"es\", or \"sv-SE\"."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "description": "Document is a NewsDoc document."
+    }
+  }
+}
