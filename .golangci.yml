@@ -1,0 +1,56 @@
+linters:
+  enable:
+  - bodyclose
+  - depguard
+  - dogsled
+  - dupl
+  - errcheck
+  - errorlint
+  - exhaustive
+  - exportloopref
+  - forbidigo
+  - gci
+  - gochecknoinits
+  - goconst
+  - gocritic
+  - godot
+  - godox
+  - gofumpt
+  - goheader
+  - goimports
+  - gomoddirectives
+  - gomodguard
+  - goprintffuncname
+  - gosec
+  - gosimple
+  - govet
+  - importas
+  - ineffassign
+  - lll
+  - makezero
+  - misspell
+  - nakedret
+  - nestif
+  - nilnil
+  - nlreturn
+  - nolintlint
+  - predeclared
+  - promlinter
+  - revive
+  - staticcheck
+  - stylecheck
+  - tenv
+  - testpackage
+  - thelper
+  - typecheck
+  - unconvert
+  - unparam
+  - unused
+  - whitespace
+  - wrapcheck
+  - wsl
+linters-settings:
+  godox:
+    keywords:
+      - FIXME
+      - BUG

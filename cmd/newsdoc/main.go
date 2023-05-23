@@ -70,6 +70,7 @@ func protobufAction(c *cli.Context) error {
 	}
 
 	fset := token.NewFileSet()
+
 	file, err := parser.ParseFile(fset, sourceName, nil, parser.ParseComments)
 	if err != nil {
 		return fmt.Errorf("parse Go source: %w", err)
@@ -96,7 +97,7 @@ func protobufAction(c *cli.Context) error {
 	return nil
 }
 
-func jsonschemaAction(c *cli.Context) error {
+func jsonschemaAction(_ *cli.Context) error {
 	var r jsonschema.Reflector
 
 	err := r.AddGoComments("github.com/ttab/newsdoc", "./")
@@ -186,7 +187,7 @@ func validateAction(c *cli.Context) error {
 
 	err = schema.Validate(v)
 	if err != nil {
-		return fmt.Errorf("%#v", err)
+		return fmt.Errorf("%#v", err) //nolint: errorlint
 	}
 
 	return nil

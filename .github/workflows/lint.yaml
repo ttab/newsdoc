@@ -1,0 +1,22 @@
+name: Lint code
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.20.2'
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.51
+          args: --timeout=4m

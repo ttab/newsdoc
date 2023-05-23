@@ -79,7 +79,8 @@ func InterpretAST(set *token.FileSet, file *ast.File) ([]Message, error) {
 
 		ft, err := printExpr(set, field.Type)
 		if err != nil {
-
+			return fmt.Errorf(
+				"failed to print Go AST expression for field type: %w", err)
 		}
 
 		f.GoType = ft
@@ -107,6 +108,7 @@ func InterpretAST(set *token.FileSet, file *ast.File) ([]Message, error) {
 	ast.Inspect(file, func(node ast.Node) bool {
 		if node == nil {
 			depth--
+
 			return true
 		}
 
