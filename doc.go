@@ -69,7 +69,7 @@ type Block struct {
 	Value string `json:"value,omitempty" proto:"11"`
 	// ContentType is used to describe the content type of the block/linked
 	// entity if it differs from the type of the block.
-	ContentType string `json:"contenttype,omitempty" proto:"12"`
+	Contenttype string `json:"contenttype,omitempty" proto:"12"`
 	// Links are used to link to other resources and documents.
 	Links []Block `json:"links,omitempty" proto:"13"`
 	// Content is used to embed content blocks.
