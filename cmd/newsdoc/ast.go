@@ -21,6 +21,7 @@ type Message struct {
 type Field struct {
 	Name        string
 	GoName      string
+	ProtoName   string
 	Type        string
 	GoType      string
 	FieldNumber int
@@ -68,6 +69,8 @@ func InterpretAST(set *token.FileSet, file *ast.File) ([]Message, error) {
 			Name:   jsonT.Name,
 			GoName: field.Names[0].String(),
 		}
+
+		f.ProtoName = strings.ToUpper(jsonT.Name[0:1]) + jsonT.Name[1:]
 
 		fieldNum, err := strconv.Atoi(protoT.Name)
 		if err != nil {

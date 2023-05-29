@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 	"text/template"
 
@@ -20,6 +21,9 @@ import (
 
 //go:embed proto.tpl
 var protoTPL string
+
+//go:embed convert.tpl
+var convertTPL string
 
 func main() {
 	app := &cli.App{
@@ -39,6 +43,25 @@ func main() {
 			&cli.StringFlag{
 				Name:  "package",
 				Value: "newsdoc",
+			},
+			&cli.PathFlag{
+				Name:  "source",
+				Value: "doc.go",
+			},
+		},
+	})
+
+	app.Commands = append(app.Commands, &cli.Command{
+		Name:   "rpc-conversion",
+		Action: rpcConversonAction,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "package",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:  "formatter",
+				Value: "gofumpt",
 			},
 			&cli.PathFlag{
 				Name:  "source",
@@ -92,6 +115,65 @@ func protobufAction(c *cli.Context) error {
 	err = tmpl.Execute(os.Stdout, data)
 	if err != nil {
 		return fmt.Errorf("failed to render teplate: %w", err)
+	}
+
+	return nil
+}
+
+func rpcConversonAction(c *cli.Context) error {
+	var (
+		protoPackage = c.String("package")
+		sourceName   = c.String("source")
+		formatter    = c.String("formatter")
+	)
+
+	tmpl, err := template.New("convert").Parse(convertTPL)
+	if err != nil {
+		return fmt.Errorf("parse protobuf template: %w", err)
+	}
+
+	fset := token.NewFileSet()
+
+	file, err := parser.ParseFile(fset, sourceName, nil, parser.ParseComments)
+	if err != nil {
+		return fmt.Errorf("parse Go source: %w", err)
+	}
+
+	messages, err := InterpretAST(fset, file)
+	if err != nil {
+		return fmt.Errorf("interpreting Go AST: %w", err)
+	}
+
+	data := struct {
+		Package  string
+		Messages []Message
+	}{
+		Package:  protoPackage,
+		Messages: messages,
+	}
+
+	var rawGo bytes.Buffer
+
+	err = tmpl.Execute(&rawGo, data)
+	if err != nil {
+		return fmt.Errorf("failed to render teplate: %w", err)
+	}
+
+	formatterPath, err := exec.LookPath(formatter)
+	if err != nil {
+		return fmt.Errorf("failed to locate formatter: %w", err)
+	}
+
+	cmd := exec.Cmd{
+		Path:   formatterPath,
+		Stdin:  &rawGo,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}
+
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to run %q: %w", formatter, err)
 	}
 
 	return nil
