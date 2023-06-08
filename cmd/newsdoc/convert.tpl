@@ -31,8 +31,8 @@ func {{.Name}}FromRPC(r *{{.Name}}) newsdoc.{{.Name}} {
     if r.{{.GoName}} != nil {
        n.{{.GoName}} = make(newsdoc.DataMap)
 
-       for k, v := range r.{{.ProtoName}} {
-           n.{{.GoName}}[k] = v
+       for k, v := range n.{{.ProtoName}} {
+           r.{{.GoName}}[k] = v
        }
     }
 
