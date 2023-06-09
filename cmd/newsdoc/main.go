@@ -48,6 +48,11 @@ func main() {
 				Name:  "source",
 				Value: "doc.go",
 			},
+			&cli.StringSliceFlag{
+				Name:    "option",
+				Aliases: []string{"o"},
+				Usage:   `-o[ption] go_package=./repository`,
+			},
 		},
 	})
 
@@ -85,7 +90,19 @@ func protobufAction(c *cli.Context) error {
 	var (
 		protoPackage = c.String("package")
 		sourceName   = c.String("source")
+		options      = c.StringSlice("option")
 	)
+
+	protoOpt := make(map[string]string)
+
+	for _, v := range options {
+		key, value, ok := strings.Cut(v, "=")
+		if !ok {
+			return fmt.Errorf("invalid option %q", v)
+		}
+
+		protoOpt[key] = value
+	}
 
 	tmpl, err := template.New("proto").Parse(protoTPL)
 	if err != nil {
@@ -106,9 +123,11 @@ func protobufAction(c *cli.Context) error {
 
 	data := struct {
 		Package  string
+		Options  map[string]string
 		Messages []Message
 	}{
 		Package:  protoPackage,
+		Options:  protoOpt,
 		Messages: messages,
 	}
 
