@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/fatih/structtag v1.2.0
 	github.com/invopop/jsonschema v0.7.0
-	github.com/santhosh-tekuri/jsonschema/v5 v5.3.0
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/urfave/cli/v2 v2.25.7
 )
 
