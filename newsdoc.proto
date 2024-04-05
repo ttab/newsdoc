@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package newsdoc;
 
+
+
 // Document is a NewsDoc document.
 message Document {
   // UUID is a unique ID for the document, this can for example be a
@@ -71,6 +73,11 @@ message Block {
   repeated Block content = 14;
   // Meta is used to embed metadata
   repeated Block meta = 15;
+  // Sensitivity can be use to communicate how the information in a block
+  // can be handled. It could f.ex. be set to "internal", to show that it
+  // contains information that must be removed or transformed before
+  // publishing.
+  string sensitivity = 16;
 }
 
 
