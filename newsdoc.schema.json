@@ -76,6 +76,10 @@
           },
           "type": "array",
           "description": "Meta is used to embed metadata"
+        },
+        "sensitivity": {
+          "type": "string",
+          "description": "Sensitivity can be use to communicate how the information in a block can be handled. It could f.ex. be set to \"internal\", to show that it contains information that must be removed or transformed before publishing."
         }
       },
       "additionalProperties": false,

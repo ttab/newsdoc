@@ -76,6 +76,11 @@ type Block struct {
 	Content []Block `json:"content,omitempty" proto:"14"`
 	// Meta is used to embed metadata
 	Meta []Block `json:"meta,omitempty" proto:"15"`
+	// Sensitivity can be use to communicate how the information in a block
+	// can be handled. It could f.ex. be set to "internal", to show that it
+	// contains information that must be removed or transformed before
+	// publishing.
+	Sensitivity string `json:"sensitivity,omitempty" proto:"16"`
 }
 
 // DataMap is used as key -> (string) value data for blocks.
