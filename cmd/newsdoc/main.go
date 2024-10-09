@@ -2,39 +2,24 @@ package main
 
 import (
 	"bytes"
-	_ "embed"
 	"encoding/json"
 	"fmt"
-	"go/parser"
-	"go/token"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
-	"text/template"
 
 	"github.com/invopop/jsonschema"
 	jsv "github.com/santhosh-tekuri/jsonschema/v5"
 	"github.com/ttab/newsdoc"
+	"github.com/ttab/newsdoc/codegen"
 	"github.com/urfave/cli/v2"
 )
-
-//go:embed proto.tpl
-var protoTPL string
-
-//go:embed convert.tpl
-var convertTPL string
 
 func main() {
 	app := &cli.App{
 		Name:  "newsdoc",
 		Usage: "NewsDoc tools",
 	}
-
-	app.Commands = append(app.Commands, &cli.Command{
-		Name:   "jsonschema",
-		Action: jsonschemaAction,
-	})
 
 	app.Commands = append(app.Commands, &cli.Command{
 		Name:   "protobuf",
@@ -57,22 +42,8 @@ func main() {
 	})
 
 	app.Commands = append(app.Commands, &cli.Command{
-		Name:   "rpc-conversion",
-		Action: rpcConversonAction,
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:     "package",
-				Required: true,
-			},
-			&cli.StringFlag{
-				Name:  "formatter",
-				Value: "gofumpt",
-			},
-			&cli.PathFlag{
-				Name:  "source",
-				Value: "doc.go",
-			},
-		},
+		Name:   "jsonschema",
+		Action: jsonschemaAction,
 	})
 
 	app.Commands = append(app.Commands, &cli.Command{
@@ -104,95 +75,9 @@ func protobufAction(c *cli.Context) error {
 		protoOpt[key] = value
 	}
 
-	tmpl, err := template.New("proto").Parse(protoTPL)
+	err := codegen.Protobuf(os.Stdout, protoPackage, sourceName, protoOpt)
 	if err != nil {
-		return fmt.Errorf("parse protobuf template: %w", err)
-	}
-
-	fset := token.NewFileSet()
-
-	file, err := parser.ParseFile(fset, sourceName, nil, parser.ParseComments)
-	if err != nil {
-		return fmt.Errorf("parse Go source: %w", err)
-	}
-
-	messages, err := InterpretAST(fset, file)
-	if err != nil {
-		return fmt.Errorf("interpreting Go AST: %w", err)
-	}
-
-	data := struct {
-		Package  string
-		Options  map[string]string
-		Messages []Message
-	}{
-		Package:  protoPackage,
-		Options:  protoOpt,
-		Messages: messages,
-	}
-
-	err = tmpl.Execute(os.Stdout, data)
-	if err != nil {
-		return fmt.Errorf("failed to render teplate: %w", err)
-	}
-
-	return nil
-}
-
-func rpcConversonAction(c *cli.Context) error {
-	var (
-		protoPackage = c.String("package")
-		sourceName   = c.String("source")
-		formatter    = c.String("formatter")
-	)
-
-	tmpl, err := template.New("convert").Parse(convertTPL)
-	if err != nil {
-		return fmt.Errorf("parse protobuf template: %w", err)
-	}
-
-	fset := token.NewFileSet()
-
-	file, err := parser.ParseFile(fset, sourceName, nil, parser.ParseComments)
-	if err != nil {
-		return fmt.Errorf("parse Go source: %w", err)
-	}
-
-	messages, err := InterpretAST(fset, file)
-	if err != nil {
-		return fmt.Errorf("interpreting Go AST: %w", err)
-	}
-
-	data := struct {
-		Package  string
-		Messages []Message
-	}{
-		Package:  protoPackage,
-		Messages: messages,
-	}
-
-	var rawGo bytes.Buffer
-
-	err = tmpl.Execute(&rawGo, data)
-	if err != nil {
-		return fmt.Errorf("failed to render teplate: %w", err)
-	}
-
-	formatterPath, err := exec.LookPath(formatter)
-	if err != nil {
-		return fmt.Errorf("failed to locate formatter: %w", err)
-	}
-
-	cmd := exec.Cmd{
-		Path:   formatterPath,
-		Stdin:  &rawGo,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}
-
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("failed to run %q: %w", formatter, err)
+		return fmt.Errorf("generate protobuf: %w", err)
 	}
 
 	return nil
@@ -216,13 +101,13 @@ func jsonschemaAction(_ *cli.Context) error {
 			continue
 		}
 
-		for _, name := range def.Properties.Keys() {
-			prop, _ := def.Properties.Get(name)
-			propSchema := prop.(*jsonschema.Schema)
-
-			propSchema.Description = strings.ReplaceAll(
-				propSchema.Description, "\n", " ",
+		pair := def.Properties.Oldest()
+		for pair != nil {
+			pair.Value.Description = strings.ReplaceAll(
+				pair.Value.Description, "\n", " ",
 			)
+
+			pair = pair.Next()
 		}
 	}
 

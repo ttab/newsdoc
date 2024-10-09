@@ -87,10 +87,8 @@
       "description": "Block is the building block for data embedded in documents."
     },
     "DataMap": {
-      "patternProperties": {
-        ".*": {
-          "type": "string"
-        }
+      "additionalProperties": {
+        "type": "string"
       },
       "type": "object",
       "description": "DataMap is used as key -\u003e (string) value data for blocks."
