@@ -1,12 +1,12 @@
 package newsdoc
 
 // Get the value with the given key. This is safe to use on nil DataMaps.
-func (data DataMap) Get(key string, defaultValue string) string {
-	if data == nil {
+func (bd DataMap) Get(key string, defaultValue string) string {
+	if bd == nil {
 		return defaultValue
 	}
 
-	v, ok := data[key]
+	v, ok := bd[key]
 	if !ok {
 		return defaultValue
 	}
@@ -15,40 +15,40 @@ func (data DataMap) Get(key string, defaultValue string) string {
 }
 
 // Delete the values with the given keys. This is safe to use on nil DataMaps.
-func (data DataMap) Delete(keys ...string) {
-	if data == nil {
+func (bd DataMap) Delete(keys ...string) {
+	if bd == nil {
 		return
 	}
 
 	for _, key := range keys {
-		delete(data, key)
+		delete(bd, key)
 	}
 }
 
 // DropEmpty removes all entries with empty values. This is safe to use on nil
 // DataMaps.
-func (data DataMap) DropEmpty() {
-	if data == nil {
+func (bd DataMap) DropEmpty() {
+	if bd == nil {
 		return
 	}
 
-	for k, v := range data {
+	for k, v := range bd {
 		if v != "" {
 			continue
 		}
 
-		delete(data, k)
+		delete(bd, k)
 	}
 }
 
 // UpsertData adds the values from new into data. If data is nil a new DataMap
 // will be created.
-func UpsertData(data DataMap, new DataMap) DataMap {
+func UpsertData(data DataMap, newData DataMap) DataMap {
 	if data == nil {
 		data = make(DataMap)
 	}
 
-	for k, v := range new {
+	for k, v := range newData {
 		data[k] = v
 	}
 
