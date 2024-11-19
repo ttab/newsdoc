@@ -55,7 +55,7 @@ func UpsertData(data DataMap, newData DataMap) DataMap {
 	return data
 }
 
-// WithDefaults adds the values from defaults into data if the vallue for
+// WithDefaults adds the values from defaults into data if the value for
 // corresponding key is unset or empty. If data is nil a new DataMap will be
 // created.
 func DataWithDefaults(data DataMap, defaults DataMap) DataMap {
