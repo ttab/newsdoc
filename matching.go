@@ -38,7 +38,7 @@ func BlockMatchesAll(matchers ...BlockMatcher) BlockMatcher {
 
 // BlockMatchesAny returns a block matcher that returns true if a block matches
 // any of the conditions.
-func BlocksMatchesAny(matchers ...BlockMatcher) BlockMatcher {
+func BlockMatchesAny(matchers ...BlockMatcher) BlockMatcher {
 	return BlockMatchFunc(func(block Block) bool {
 		for _, m := range matchers {
 			if m.Match(block) {
