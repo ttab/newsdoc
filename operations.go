@@ -17,6 +17,21 @@ func FirstBlock(list []Block, selector BlockMatcher) (Block, bool) {
 	return Block{}, false
 }
 
+// AllBlocks returns all blocks matching the selector.
+func AllBlocks(list []Block, selector BlockMatcher) []Block {
+	var res []Block
+
+	for _, b := range list {
+		if !selector.Match(b) {
+			continue
+		}
+
+		res = append(res, b)
+	}
+
+	return res
+}
+
 // DropBlocks removes all blocks matching the selector.
 func DropBlocks(list []Block, selector BlockMatcher) []Block {
 	return slices.DeleteFunc(list, selector.Match)
