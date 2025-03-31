@@ -69,6 +69,19 @@ func AlterBlocks(list []Block, selector BlockMatcher, fn func(*Block)) {
 	}
 }
 
+// AlterFirstBlock calls fn for the first block matching the selector.
+func AlterFirstBlock(list []Block, selector BlockMatcher, fn func(*Block)) {
+	for i := range list {
+		if !selector.Match(list[i]) {
+			continue
+		}
+
+		fn(&list[i])
+
+		return
+	}
+}
+
 // UpsertBlock inserts a new block or updates an existing block if it matches
 // the selector. The function fn will be called on the inserted or existing
 // block.
