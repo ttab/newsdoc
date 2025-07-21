@@ -89,6 +89,10 @@ type DataMap map[string]string
 // MarshalJSON implements a custom marshaler to make the JSON output of a
 // document deterministic. Maps are unordered.
 func (bd DataMap) MarshalJSON() ([]byte, error) {
+	if bd == nil {
+		return []byte("null"), nil
+	}
+
 	var buf bytes.Buffer
 
 	keys := make([]string, 0, len(bd))
