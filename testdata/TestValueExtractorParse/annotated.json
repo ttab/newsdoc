@@ -1,0 +1,25 @@
+{
+  "Selectors": [
+    {
+      "Kind": "meta",
+      "Type": "core/collection"
+    },
+    {
+      "Kind": "links",
+      "Rel": "item"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Annotation": "date",
+      "Name": "date",
+      "omitempty": false
+    },
+    {
+      "Name": "date_timezone",
+      "Role": "tz",
+      "omitempty": false
+    }
+  ]
+}

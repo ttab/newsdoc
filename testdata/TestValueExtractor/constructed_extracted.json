@@ -1,0 +1,52 @@
+[
+  [
+    {
+      "date": {
+        "Annotation": "date",
+        "Name": "date",
+        "Value": "2025-10-19"
+      },
+      "date_timezone": {
+        "Name": "date_timezone",
+        "Role": "tz",
+        "Value": "Asia/Shanghai"
+      }
+    },
+    {
+      "date": {
+        "Annotation": "date",
+        "Name": "date",
+        "Value": "2025-10-21"
+      }
+    }
+  ],
+  [
+    {
+      "end": {
+        "Name": "end",
+        "Value": "2025-10-17T07:00:00.000Z"
+      },
+      "start": {
+        "Name": "start",
+        "Value": "2025-10-17T07:00:00.000Z"
+      }
+    }
+  ],
+  [
+    {
+      "value": {
+        "Annotation": "date",
+        "Name": "value",
+        "Value": "2025-10-15"
+      }
+    }
+  ],
+  [
+    {
+      "timestamp": {
+        "Name": "timestamp",
+        "Value": "2025-10-17T08:34:35+02:00"
+      }
+    }
+  ]
+]

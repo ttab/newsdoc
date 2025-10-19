@@ -1,0 +1,16 @@
+{
+  "Selectors": [
+    {
+      "Kind": "content",
+      "Type": "example/assumed-static-tz"
+    }
+  ],
+  "ValueKind": "attributes",
+  "Values": [
+    {
+      "Annotation": "date",
+      "Name": "value",
+      "omitempty": false
+    }
+  ]
+}
