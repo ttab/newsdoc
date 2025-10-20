@@ -14,7 +14,7 @@ type TestingT interface {
 	Logf(format string, args ...any)
 }
 
-func Must(t TestingT, err error, format string, a ...any) {
+func Mustf(t TestingT, err error, format string, a ...any) {
 	t.Helper()
 
 	if err != nil {

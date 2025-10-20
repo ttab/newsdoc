@@ -33,13 +33,13 @@ func (fi SortMapStringKeys) CmpOpts() cmp.Options {
 }
 
 // JSONTransform implements GoldenHelper.
-func (fi SortMapStringKeys) JSONTransform(value map[string]any) error {
+func (fi SortMapStringKeys) JSONTransform(_ map[string]any) error {
 	return nil
 }
 
-// TestAgainstGolden compares a result against the contents of the file at the
+// AgainstGolden compares a result against the contents of the file at the
 // goldenPath. Run with regenerate set to true to create or update the file.
-func TestAgainstGolden[T any](
+func AgainstGolden[T any](
 	t TestingT,
 	regenerate bool,
 	got T,
@@ -50,13 +50,14 @@ func TestAgainstGolden[T any](
 
 	if regenerate {
 		data, err := json.Marshal(got)
-		Must(t, err, "marshal result")
+		Mustf(t, err, "marshal result")
 
 		var (
 			obj    any
 			objMap map[string]any
 		)
 
+		//nolint: exhaustive
 		switch reflect.TypeOf(got).Kind() {
 		case reflect.Array:
 			obj = []any{}
@@ -71,7 +72,7 @@ func TestAgainstGolden[T any](
 		}
 
 		err = json.Unmarshal(data, &obj)
-		Must(t, err, "unmarshal for transform")
+		Mustf(t, err, "unmarshal for transform")
 
 		for i := range helpers {
 			anyHelper, hasAnyHelper := helpers[i].(GoldenHelperForAny)
@@ -79,30 +80,30 @@ func TestAgainstGolden[T any](
 			switch {
 			case objMap != nil:
 				err := helpers[i].JSONTransform(objMap)
-				Must(t, err, "transform for storage")
+				Mustf(t, err, "transform for storage")
 			case hasAnyHelper:
 				err := anyHelper.JSONTransformAny(obj)
-				Must(t, err, "transform for storage")
+				Mustf(t, err, "transform for storage")
 			}
 		}
 
 		data, err = json.MarshalIndent(obj, "", "  ")
-		Must(t, err, "marshal for storage in %q", goldenPath)
+		Mustf(t, err, "marshal for storage in %q", goldenPath)
 
 		// End all files with a newline
 		data = append(data, '\n')
 
 		err = os.WriteFile(goldenPath, data, 0o600)
-		Must(t, err, "write golden file %q", goldenPath)
+		Mustf(t, err, "write golden file %q", goldenPath)
 	}
 
 	wantData, err := os.ReadFile(goldenPath)
-	Must(t, err, "read from golden file %q", goldenPath)
+	Mustf(t, err, "read from golden file %q", goldenPath)
 
 	var wantValue T
 
 	err = json.Unmarshal(wantData, &wantValue)
-	Must(t, err, "unmarshal data from golden file %q", goldenPath)
+	Mustf(t, err, "unmarshal data from golden file %q", goldenPath)
 
 	var cmpOpts cmp.Options
 
@@ -110,12 +111,12 @@ func TestAgainstGolden[T any](
 		cmpOpts = append(cmpOpts, h.CmpOpts()...)
 	}
 
-	EqualDiffWithOptions(t, wantValue, got, cmpOpts,
+	EqualDiffWithOptionsf(t, wantValue, got, cmpOpts,
 		"must match golden file %q", goldenPath)
 }
 
-// EqualMessage runs a cmp.Diff with protobuf-specific options.
-func EqualDiffWithOptions[T any](
+// EqualDiffWithOptionsf runs a cmp.Diff with protobuf-specific options.
+func EqualDiffWithOptionsf[T any](
 	t TestingT,
 	want T, got T,
 	opts cmp.Options,

@@ -14,7 +14,7 @@ func TestValueExtractorParse(t *testing.T) {
 	dataDir := filepath.Join("testdata", t.Name())
 
 	err := os.MkdirAll(dataDir, 0o770)
-	test.Must(t, err, "ensure testdata dir")
+	test.Mustf(t, err, "ensure testdata dir")
 
 	cases := map[string]string{
 		"annotated":  ".meta(type='core/collection').links(rel='item').data{date:date, tz=date_timezone}",
@@ -25,9 +25,9 @@ func TestValueExtractorParse(t *testing.T) {
 	for name, str := range cases {
 		t.Run(name, func(t *testing.T) {
 			ve, err := newsdoc.ValueExtractorFromString(str)
-			test.Must(t, err, "parse expression %q", str)
+			test.Mustf(t, err, "parse expression %q", str)
 
-			test.TestAgainstGolden(t, regenerate, ve,
+			test.AgainstGolden(t, regenerate, ve,
 				filepath.Join(dataDir, name+".json"))
 		})
 	}
@@ -43,7 +43,7 @@ func TestValueExtractor(t *testing.T) {
 	dataDir := filepath.Join("testdata", t.Name())
 
 	err := os.MkdirAll(dataDir, 0o770)
-	test.Must(t, err, "ensure testdata dir")
+	test.Mustf(t, err, "ensure testdata dir")
 
 	cases := map[string]extractorCase{
 		"constructed": {
@@ -64,18 +64,18 @@ func TestValueExtractor(t *testing.T) {
 			err := test.UnmarshalFile(
 				filepath.Join(dataDir, "constructed.json"),
 				&doc)
-			test.Must(t, err, "unmarshal document")
+			test.Mustf(t, err, "unmarshal document")
 
 			var extracted [][]newsdoc.ExtractedItems
 
 			for _, exp := range c.Expressions {
 				ve, err := newsdoc.ValueExtractorFromString(exp)
-				test.Must(t, err, "parse expression %q", exp)
+				test.Mustf(t, err, "parse expression %q", exp)
 
 				extracted = append(extracted, ve.Collect(doc))
 			}
 
-			test.TestAgainstGolden(t, regenerate, extracted,
+			test.AgainstGolden(t, regenerate, extracted,
 				filepath.Join(dataDir, name+"_extracted.json"),
 				test.SortMapStringKeys{},
 			)

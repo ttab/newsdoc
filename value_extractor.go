@@ -39,8 +39,10 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 	dataIdx := bytes.LastIndex(text, dataPrefix)
 	attrIdx := bytes.LastIndex(text, attrPrefix)
 
-	var valueSpecInner []byte
-	var selector []byte
+	var (
+		valueSpecInner []byte
+		selector       []byte
+	)
 
 	switch {
 	case dataIdx != -1 && attrIdx != -1:
@@ -382,8 +384,9 @@ func parseAttributes(selector *BlockSelector, attrsStr []byte) error {
 			return fmt.Errorf("unterminated quoted value in: %q", valPart)
 		}
 
-		// The index is relative to valPart[1:], so add 1 to get the absolute index in valPart
-		endQuoteIndex += 1
+		// The index is relative to valPart[1:], increment to get the
+		// absolute index in valPart
+		endQuoteIndex++
 
 		value := valPart[1:endQuoteIndex]
 
@@ -394,6 +397,7 @@ func parseAttributes(selector *BlockSelector, attrsStr []byte) error {
 
 		remaining = bytes.TrimSpace(valPart[endQuoteIndex+1:])
 	}
+
 	return nil
 }
 
@@ -433,6 +437,7 @@ func parseSelectors(s []byte) ([]BlockSelector, error) {
 
 			// Remove the trailing ')' before parsing
 			attrsStr = attrsStr[:len(attrsStr)-1]
+
 			if err := parseAttributes(&selector, attrsStr); err != nil {
 				return nil, err
 			}
