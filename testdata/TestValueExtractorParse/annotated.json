@@ -13,13 +13,12 @@
   "Values": [
     {
       "Annotation": "date",
-      "Name": "date",
-      "omitempty": false
+      "Name": "date"
     },
     {
       "Name": "date_timezone",
-      "Role": "tz",
-      "omitempty": false
+      "Optional": true,
+      "Role": "tz"
     }
   ]
 }

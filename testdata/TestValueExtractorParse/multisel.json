@@ -9,8 +9,7 @@
   "ValueKind": "data",
   "Values": [
     {
-      "Name": "timestamp",
-      "omitempty": false
+      "Name": "timestamp"
     }
   ]
 }

@@ -17,7 +17,7 @@ func TestValueExtractorParse(t *testing.T) {
 	test.Mustf(t, err, "ensure testdata dir")
 
 	cases := map[string]string{
-		"annotated":  ".meta(type='core/collection').links(rel='item').data{date:date, tz=date_timezone}",
+		"annotated":  ".meta(type='core/collection').links(rel='item').data{date:date, tz=date_timezone?}",
 		"attributes": ".content(type='example/assumed-static-tz')@{value:date}",
 		"multisel":   ".links(rel='point-in-time' type='example/pit').data{timestamp}",
 	}

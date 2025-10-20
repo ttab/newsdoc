@@ -216,7 +216,7 @@ func getBlockAttribute(b Block, name string) string {
 
 type ValueSpec struct {
 	Name       string
-	Optional   bool   `json:"omitempty"`
+	Optional   bool   `json:",omitempty"`
 	Annotation string `json:",omitempty"`
 	Role       string `json:",omitempty"`
 }

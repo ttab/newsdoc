@@ -9,8 +9,7 @@
   "Values": [
     {
       "Annotation": "date",
-      "Name": "value",
-      "omitempty": false
+      "Name": "value"
     }
   ]
 }
