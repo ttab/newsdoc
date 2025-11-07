@@ -1,5 +1,6 @@
 {
   "type": "example/constructed",
+  "title": "A constructed and contrived example document",
   "meta": [
     {
       "type": "example/collection",

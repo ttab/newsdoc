@@ -51,6 +51,10 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 		ve.ValueKind = ValueKindData
 		selector = text[:dataIdx]
 		valueSpecInner, _ = bytes.CutPrefix(text[dataIdx:], dataPrefix)
+
+		if dataIdx == 0 {
+			return nil, fmt.Errorf("documents do not have data blocks")
+		}
 	case attrIdx != -1:
 		ve.ValueKind = ValueKindAttributes
 		selector = text[:attrIdx]
@@ -83,8 +87,15 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 }
 
 func (ve *ValueExtractor) Collect(doc Document) []ExtractedItems {
+	// If we don't have a selector the value extraction targets the document
+	// itself.
 	if len(ve.Selectors) == 0 {
-		return nil
+		docValues := extractDocumentAttributes(doc, ve.Values)
+		if len(docValues) == 0 {
+			return nil
+		}
+
+		return []ExtractedItems{docValues}
 	}
 
 	var blocks []Block
@@ -148,6 +159,50 @@ func (ve *ValueExtractor) Collect(doc Document) []ExtractedItems {
 	}
 
 	return extracts
+}
+
+func extractDocumentAttributes(doc Document, spec []ValueSpec) ExtractedItems {
+	e := make(ExtractedItems)
+
+	for _, v := range spec {
+		value := getDocumentAttribute(doc, v.Name)
+		switch {
+		case value == "" && !v.Optional:
+			return nil
+		case value == "" && v.Optional:
+			continue
+		}
+
+		ev := ExtractedValue{
+			Name:       v.Name,
+			Value:      value,
+			Annotation: v.Annotation,
+			Role:       v.Role,
+		}
+
+		e[v.Name] = ev
+	}
+
+	return e
+}
+
+func getDocumentAttribute(doc Document, name string) string {
+	switch name {
+	case "uuid":
+		return doc.UUID
+	case "type":
+		return doc.Type
+	case "uri":
+		return doc.URI
+	case "url":
+		return doc.URL
+	case "title":
+		return doc.Title
+	case "language":
+		return doc.Language
+	}
+
+	return ""
 }
 
 func extractItems(
@@ -405,6 +460,10 @@ func parseAttributes(selector *BlockSelector, attrsStr []byte) error {
 //
 //	".meta(type='example/thing').links"
 func parseSelectors(s []byte) ([]BlockSelector, error) {
+	if len(s) == 0 {
+		return nil, nil
+	}
+
 	if !bytes.HasPrefix(s, bPeriod) {
 		return nil, fmt.Errorf("selector chain must start with '.'")
 	}

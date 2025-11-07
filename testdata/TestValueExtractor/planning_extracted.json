@@ -1,0 +1,22 @@
+[
+  [
+    {
+      "date_tz": {
+        "Name": "date_tz",
+        "Value": "Europe/Stockholm"
+      },
+      "start_date": {
+        "Name": "start_date",
+        "Value": "2024-09-09"
+      }
+    }
+  ],
+  [
+    {
+      "uuid": {
+        "Name": "uuid",
+        "Value": "4f13347f-04b3-4f22-a992-9316d824b81f"
+      }
+    }
+  ]
+]

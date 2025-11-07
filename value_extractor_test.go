@@ -48,12 +48,20 @@ func TestValueExtractor(t *testing.T) {
 	cases := map[string]extractorCase{
 		"constructed": {
 			Expressions: []string{
+				"@{title}",
 				".meta(type='example/collection').links(rel='item').data{date:date, tz=date_timezone?}",
 				".meta(type='example/collection').links(rel='item').data{start, end}",
 				".content(type='example/assumed-static-tz')@{value:date}",
 				".links(rel='point-in-time' type='example/pit').data{timestamp}",
 			},
 			Document: "constructed.json",
+		},
+		"planning": {
+			Expressions: []string{
+				".meta(type='core/planning-item').data{start_date, date_tz?}",
+				".meta(type='core/assignment').links(rel='deliverable')@{uuid}",
+			},
+			Document: "planning.json",
 		},
 	}
 
@@ -62,7 +70,7 @@ func TestValueExtractor(t *testing.T) {
 			var doc newsdoc.Document
 
 			err := test.UnmarshalFile(
-				filepath.Join(dataDir, "constructed.json"),
+				filepath.Join(dataDir, c.Document),
 				&doc)
 			test.Mustf(t, err, "unmarshal document")
 
