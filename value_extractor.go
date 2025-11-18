@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"iter"
 	"slices"
-	"strings"
 )
 
 type ValueExtractor struct {
@@ -186,19 +185,30 @@ func extractDocumentAttributes(doc Document, spec []ValueSpec) ExtractedItems {
 	return e
 }
 
+type documentAttributeKey string
+
+const (
+	docAttrType     documentAttributeKey = "type"
+	docAttrLanguage documentAttributeKey = "language"
+	docAttrTitle    documentAttributeKey = "title"
+	docAttrUUID     documentAttributeKey = "uuid"
+	docAttrURI      documentAttributeKey = "uri"
+	docAttrURL      documentAttributeKey = "url"
+)
+
 func getDocumentAttribute(doc Document, name string) string {
-	switch name {
-	case "uuid":
+	switch documentAttributeKey(name) {
+	case docAttrUUID:
 		return doc.UUID
-	case "type":
+	case docAttrType:
 		return doc.Type
-	case "uri":
+	case docAttrURI:
 		return doc.URI
-	case "url":
+	case docAttrURL:
 		return doc.URL
-	case "title":
+	case docAttrTitle:
 		return doc.Title
-	case "language":
+	case docAttrLanguage:
 		return doc.Language
 	}
 
@@ -238,35 +248,52 @@ func getBlockData(b Block, name string) string {
 	return b.Data.Get(name, "")
 }
 
-func getBlockAttribute(b Block, name string) string {
-	switch strings.ToLower(name) {
-	case "id":
-		return b.ID
-	case "uuid":
-		return b.UUID
-	case "uri":
-		return b.URI
-	case "url":
-		return b.URL
-	case "type":
-		return b.Type
-	case "title":
-		return b.Title
-	case "rel":
-		return b.Rel
-	case "role":
-		return b.Role
-	case "name":
-		return b.Name
-	case "value":
-		return b.Value
-	case "contenttype":
-		return b.Contenttype
-	case "sensitivity":
-		return b.Sensitivity
-	default:
-		return ""
+type blockAttributeKey string
+
+const (
+	blockAttrID          blockAttributeKey = "id"
+	blockAttrUUID        blockAttributeKey = "uuid"
+	blockAttrType        blockAttributeKey = "type"
+	blockAttrURI         blockAttributeKey = "uri"
+	blockAttrURL         blockAttributeKey = "url"
+	blockAttrTitle       blockAttributeKey = "title"
+	blockAttrRel         blockAttributeKey = "rel"
+	blockAttrName        blockAttributeKey = "name"
+	blockAttrValue       blockAttributeKey = "value"
+	blockAttrContentType blockAttributeKey = "contenttype"
+	blockAttrRole        blockAttributeKey = "role"
+	blockAttrSensitivity blockAttributeKey = "sensitivity"
+)
+
+func getBlockAttribute(block Block, name string) string {
+	switch blockAttributeKey(name) {
+	case blockAttrUUID:
+		return block.UUID
+	case blockAttrID:
+		return block.ID
+	case blockAttrType:
+		return block.Type
+	case blockAttrURI:
+		return block.URI
+	case blockAttrURL:
+		return block.URL
+	case blockAttrTitle:
+		return block.Title
+	case blockAttrRel:
+		return block.Rel
+	case blockAttrName:
+		return block.Name
+	case blockAttrValue:
+		return block.Value
+	case blockAttrContentType:
+		return block.Contenttype
+	case blockAttrRole:
+		return block.Role
+	case blockAttrSensitivity:
+		return block.Sensitivity
 	}
+
+	return ""
 }
 
 type ValueSpec struct {

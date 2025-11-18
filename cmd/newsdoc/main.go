@@ -53,6 +53,7 @@ func main() {
 
 	if err := app.Run(os.Args); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err.Error())
+
 		os.Exit(1)
 	}
 }
