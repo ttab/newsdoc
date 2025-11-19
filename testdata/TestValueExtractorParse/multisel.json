@@ -1,0 +1,15 @@
+{
+  "Selectors": [
+    {
+      "Kind": "links",
+      "Rel": "point-in-time",
+      "Type": "example/pit"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "timestamp"
+    }
+  ]
+}

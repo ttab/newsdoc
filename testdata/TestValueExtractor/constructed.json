@@ -1,0 +1,46 @@
+{
+  "type": "example/constructed",
+  "title": "A constructed and contrived example document",
+  "meta": [
+    {
+      "type": "example/collection",
+      "links": [
+        {
+          "rel": "item",
+          "data": {
+            "end": "2025-10-17T07:00:00.000Z",
+            "start": "2025-10-17T07:00:00.000Z"
+          }
+        },
+        {
+          "rel": "item",
+          "data": {
+            "date": "2025-10-19",
+            "date_timezone": "Asia/Shanghai"
+          }
+        },
+        {
+          "rel": "item",
+          "data": {
+            "date": "2025-10-21"
+          }
+        }
+      ]
+    }
+  ],
+  "content": [
+    {
+      "type": "example/assumed-static-tz",
+      "value": "2025-10-15"
+    }
+  ],
+  "links": [
+    {
+      "rel": "point-in-time",
+      "type": "example/pit",
+      "data": {
+        "timestamp": "2025-10-17T08:34:35+02:00"
+      }
+    }
+  ]
+}

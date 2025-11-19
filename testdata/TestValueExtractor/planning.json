@@ -1,0 +1,85 @@
+{
+  "uuid": "dc6397d0-aa34-4ba3-b95c-3aafe7ff5cb0",
+  "type": "core/planning-item",
+  "uri": "core://newscoverage/dc6397d0-aa34-4ba3-b95c-3aafe7ff5cb0",
+  "title": "Svenska paralympier firas på Arlanda",
+  "meta": [
+    {
+      "type": "core/planning-item",
+      "data": {
+        "end_date": "2024-09-09",
+        "public": "false",
+        "start_date": "2024-09-09",
+        "tentative": "false",
+        "date_tz": "Europe/Stockholm"
+      }
+    },
+    {
+      "type": "core/copy-group",
+      "uuid": "e7a79452-f983-45db-9b39-64c87012c063"
+    },
+    {
+      "type": "core/description",
+      "data": {
+        "text": "PARASPORT: Den svenska truppen till Paralympics firas vid hemkomst (13.30, Arlanda)."
+      },
+      "role": "internal"
+    },
+    {
+      "type": "tt/slugline",
+      "value": "paralympics"
+    },
+    {
+      "type": "core/newsvalue",
+      "value": "1"
+    },
+    {
+      "id": "54ed5440-1fa7-4516-a13c-dfd4166e9f37",
+      "type": "core/assignment",
+      "title": "start prel 13.45: minst 1|800 tecken under eftermiddagen",
+      "data": {
+        "end": "2024-09-09T12:00:00Z",
+        "end_date": "2024-09-09",
+        "full_day": "false",
+        "public": "true",
+        "start": "2024-09-09T10:00:00Z",
+        "start_date": "2024-09-09",
+        "date_tz": "Europe/Stockholm"
+      },
+      "meta": [
+        {
+          "type": "core/assignment-type",
+          "value": "text"
+        }
+      ],
+      "links": [
+        {
+          "rel": "source-document",
+          "type": "tt/wire",
+          "title": "A newswire",
+          "uuid": "1aedf55d-789a-4905-afe2-12d26a5c83c1"
+        },
+        {
+          "uuid": "4f13347f-04b3-4f22-a992-9316d824b81f",
+          "type": "core/article",
+          "rel": "deliverable"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "uuid": "e7c9b5bf-7212-4402-98a5-8df555db3937",
+      "type": "core/event",
+      "title": "Untitled",
+      "rel": "event"
+    },
+    {
+      "uuid": "0730efa9-43f2-468d-979a-aaffc74d7582",
+      "type": "core/section",
+      "title": "Sport",
+      "rel": "section"
+    }
+  ],
+  "language": "sv-se"
+}
