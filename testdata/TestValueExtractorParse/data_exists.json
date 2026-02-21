@@ -1,0 +1,20 @@
+{
+  "Selectors": [
+    {
+      "DataFilters": [
+        {
+          "Key": "date",
+          "Mode": "exists"
+        }
+      ],
+      "Kind": "meta",
+      "Type": "core/event"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

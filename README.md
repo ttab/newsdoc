@@ -171,6 +171,23 @@ Selectors navigate the block hierarchy of a document. Each selector targets a bl
 
 Selectors can be chained to navigate into nested blocks. The available filter attributes are: `id`, `uuid`, `uri`, `url`, `type`, `rel`, `role`, `name`, `value`, `contenttype`, and `sensitivity`.
 
+#### Data filters
+
+In addition to block attributes, selectors can filter on values in the block's data map using the `data.` prefix inside the parentheses. Three modes are supported:
+
+```
+data.key='value'   -- exact match: the data key must exist with this value
+data.key?          -- exists: the data key must be present (even if empty)
+data.key??         -- non-empty: the data key must be present and non-empty
+```
+
+Data filters can be mixed freely with attribute filters:
+
+```
+.meta(type='core/event' data.date?? data.status='confirmed').data{date}
+.links(rel='item' data.date_timezone='Asia/Shanghai').data{date}
+```
+
 ### Extracting data values
 
 Use `.data{}` to extract values from the matched blocks' data maps:

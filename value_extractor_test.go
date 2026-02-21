@@ -17,11 +17,15 @@ func TestValueExtractorParse(t *testing.T) {
 	test.Mustf(t, err, "ensure testdata dir")
 
 	cases := map[string]string{
-		"annotated":      ".meta(type='core/collection').links(rel='item').data{date:date, tz=date_timezone?}",
-		"attributes":     ".content(type='example/assumed-static-tz')@{value:date}",
-		"multisel":       ".links(rel='point-in-time' type='example/pit').data{timestamp}",
-		"block":          "items=.meta(type='example/collection').links(rel='item'):thing",
-		"block_no_annot": "items=.meta(type='example/collection').links(rel='item')",
+		"annotated":        ".meta(type='core/collection').links(rel='item').data{date:date, tz=date_timezone?}",
+		"attributes":       ".content(type='example/assumed-static-tz')@{value:date}",
+		"multisel":         ".links(rel='point-in-time' type='example/pit').data{timestamp}",
+		"block":            "items=.meta(type='example/collection').links(rel='item'):thing",
+		"block_no_annot":   "items=.meta(type='example/collection').links(rel='item')",
+		"data_exact":       ".meta(type='core/event' data.status='confirmed').data{date}",
+		"data_exists":      ".meta(type='core/event' data.date?).data{date}",
+		"data_non_empty":   ".meta(type='core/event' data.date??).data{date}",
+		"data_multi_mixed": ".meta(type='core/event' data.date?? data.status='confirmed').data{date}",
 	}
 
 	for name, str := range cases {
@@ -57,6 +61,12 @@ func TestValueExtractor(t *testing.T) {
 				".links(rel='point-in-time' type='example/pit').data{timestamp}",
 				"pointy=.links(rel='point-in-time' type='example/pit'):interesting",
 				"unpointy=.links(rel='point-in-time' type='example/pit')",
+				// Data filter: exact match on date_timezone.
+				".meta(type='example/collection').links(rel='item' data.date_timezone='Asia/Shanghai').data{date:date}",
+				// Data filter: key exists (date exists on 2 of 3 items).
+				".meta(type='example/collection').links(rel='item' data.date?).data{date:date}",
+				// Data filter: key non-empty (date non-empty on 2 of 3 items).
+				".meta(type='example/collection').links(rel='item' data.date??).data{date:date}",
 			},
 			Document: "constructed.json",
 		},
@@ -64,6 +74,7 @@ func TestValueExtractor(t *testing.T) {
 			Expressions: []string{
 				".meta(type='core/planning-item').data{start_date, date_tz?}",
 				".meta(type='core/assignment').links(rel='deliverable')@{uuid}",
+				"block=.meta(type='core/assignment').links(rel='deliverable' data.nonesuch='value')",
 			},
 			Document: "planning.json",
 		},

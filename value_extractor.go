@@ -25,6 +25,7 @@ var (
 	bComma      = []byte(",")
 	bColon      = []byte(":")
 	bQMark      = []byte("?")
+	bDataDot    = []byte("data.")
 )
 
 func ValueExtractorFromString(text string) (*ValueExtractor, error) {
@@ -389,19 +390,41 @@ const (
 	ValueKindBlock      ValueKind = "block"
 )
 
+// DataFilterMode describes the comparison mode for a data filter.
+type DataFilterMode string
+
+const (
+	// DataFilterExact matches when the data key exists with the exact
+	// value.
+	DataFilterExact DataFilterMode = "exact"
+	// DataFilterExists matches when the data key exists, even if empty.
+	DataFilterExists DataFilterMode = "exists"
+	// DataFilterNonEmpty matches when the data key exists and is non-empty.
+	DataFilterNonEmpty DataFilterMode = "non-empty"
+)
+
+// DataFilter is a filter condition on a block's data map.
+type DataFilter struct {
+	Key   string
+	Value string `json:",omitempty"`
+	Mode  DataFilterMode
+}
+
+// BlockSelector selects blocks by kind and optional attribute/data filters.
 type BlockSelector struct {
 	Kind BlockKind
 
-	ID          *string `json:",omitempty"`
-	URI         *string `json:",omitempty"`
-	URL         *string `json:",omitempty"`
-	Type        *string `json:",omitempty"`
-	Rel         *string `json:",omitempty"`
-	Role        *string `json:",omitempty"`
-	Name        *string `json:",omitempty"`
-	Value       *string `json:",omitempty"`
-	Contenttype *string `json:",omitempty"`
-	Sensitivity *string `json:",omitempty"`
+	ID          *string      `json:",omitempty"`
+	URI         *string      `json:",omitempty"`
+	URL         *string      `json:",omitempty"`
+	Type        *string      `json:",omitempty"`
+	Rel         *string      `json:",omitempty"`
+	Role        *string      `json:",omitempty"`
+	Name        *string      `json:",omitempty"`
+	Value       *string      `json:",omitempty"`
+	Contenttype *string      `json:",omitempty"`
+	Sensitivity *string      `json:",omitempty"`
+	DataFilters []DataFilter `json:",omitempty"`
 }
 
 func (bs BlockSelector) Iterator(blocks iter.Seq[Block]) iter.Seq[Block] {
@@ -459,6 +482,24 @@ func (bs BlockSelector) Matches(b Block) bool {
 		return false
 	}
 
+	for _, df := range bs.DataFilters {
+		switch df.Mode {
+		case DataFilterExact:
+			if b.Data.Get(df.Key, "") != df.Value {
+				return false
+			}
+		case DataFilterExists:
+			_, ok := b.Data[df.Key]
+			if !ok {
+				return false
+			}
+		case DataFilterNonEmpty:
+			if b.Data.Get(df.Key, "") == "" {
+				return false
+			}
+		}
+	}
+
 	return true
 }
 
@@ -502,9 +543,25 @@ func setSelectorField(selector *BlockSelector, key, value string) error {
 // parseAttributes parses the attribute string, e.g.:
 //
 //	"type='core/text' rel='item'"
+//	"type='core/event' data.date?? data.status='confirmed'"
 func parseAttributes(selector *BlockSelector, attrsStr []byte) error {
 	remaining := bytes.TrimSpace(attrsStr)
+
 	for len(remaining) != 0 {
+		// Check for data filter prefix before trying to parse as
+		// a regular attribute.
+		if bytes.HasPrefix(remaining, bDataDot) {
+			df, n, err := parseDataFilter(remaining)
+			if err != nil {
+				return err
+			}
+
+			selector.DataFilters = append(selector.DataFilters, df)
+			remaining = bytes.TrimSpace(remaining[n:])
+
+			continue
+		}
+
 		key, valPart, foundEq := bytes.Cut(remaining, bEqual)
 		if !foundEq {
 			return fmt.Errorf("invalid attribute format, expected '=' in: %q", remaining)
@@ -522,19 +579,19 @@ func parseAttributes(selector *BlockSelector, attrsStr []byte) error {
 			return fmt.Errorf("attribute value must be quoted: %q", valPart)
 		}
 
-		// Find the closing quote, starting after the opening one
+		// Find the closing quote, starting after the opening one.
 		endQuoteIndex := bytes.IndexByte(valPart[1:], quote)
 		if endQuoteIndex == -1 {
 			return fmt.Errorf("unterminated quoted value in: %q", valPart)
 		}
 
 		// The index is relative to valPart[1:], increment to get the
-		// absolute index in valPart
+		// absolute index in valPart.
 		endQuoteIndex++
 
 		value := valPart[1:endQuoteIndex]
 
-		// Assign the value to the selector
+		// Assign the value to the selector.
 		if err := setSelectorField(selector, string(key), string(value)); err != nil {
 			return err
 		}
@@ -545,9 +602,130 @@ func parseAttributes(selector *BlockSelector, attrsStr []byte) error {
 	return nil
 }
 
+// parseDataFilter parses a data filter token from the start of b. It returns
+// the parsed filter and the number of bytes consumed. The input must start with
+// "data.".
+func parseDataFilter(b []byte) (DataFilter, int, error) {
+	// Find the end of this token (next space or end of input).
+	tokenEnd := bytes.IndexByte(b, ' ')
+	if tokenEnd == -1 {
+		tokenEnd = len(b)
+	}
+
+	token := b[:tokenEnd]
+	rest := token[len(bDataDot):]
+
+	// Check for existence modes first (order matters: ?? before ?).
+	if bytes.HasSuffix(rest, []byte("??")) {
+		key := rest[:len(rest)-2]
+		if len(key) == 0 {
+			return DataFilter{}, 0, fmt.Errorf(
+				"empty key in data filter: %q", token)
+		}
+
+		return DataFilter{
+			Key:  string(key),
+			Mode: DataFilterNonEmpty,
+		}, tokenEnd, nil
+	}
+
+	if bytes.HasSuffix(rest, bQMark) {
+		key := rest[:len(rest)-1]
+		if len(key) == 0 {
+			return DataFilter{}, 0, fmt.Errorf(
+				"empty key in data filter: %q", token)
+		}
+
+		return DataFilter{
+			Key:  string(key),
+			Mode: DataFilterExists,
+		}, tokenEnd, nil
+	}
+
+	// Exact match: data.key='value'. The token boundary might be wrong
+	// since the value can contain spaces, so we re-parse from the original
+	// input.
+	eqIdx := bytes.IndexByte(rest, '=')
+	if eqIdx == -1 {
+		return DataFilter{}, 0, fmt.Errorf(
+			"invalid data filter, expected '?', '??', or '=' in: %q", token)
+	}
+
+	key := rest[:eqIdx]
+	if len(key) == 0 {
+		return DataFilter{}, 0, fmt.Errorf(
+			"empty key in data filter: %q", token)
+	}
+
+	// Parse the quoted value from the full remaining input starting after
+	// the '='.
+	valStart := len(bDataDot) + eqIdx + 1
+	valPart := b[valStart:]
+
+	if len(valPart) == 0 || valPart[0] != '\'' {
+		return DataFilter{}, 0, fmt.Errorf(
+			"data filter value must be quoted: %q", token)
+	}
+
+	endQuoteIndex := bytes.IndexByte(valPart[1:], '\'')
+	if endQuoteIndex == -1 {
+		return DataFilter{}, 0, fmt.Errorf(
+			"unterminated quoted value in data filter: %q", b)
+	}
+
+	// endQuoteIndex is relative to valPart[1:].
+	endQuoteIndex++
+
+	value := valPart[1:endQuoteIndex]
+	consumed := valStart + endQuoteIndex + 1
+
+	return DataFilter{
+		Key:   string(key),
+		Value: string(value),
+		Mode:  DataFilterExact,
+	}, consumed, nil
+}
+
+// splitSelectors splits a selector chain on periods that are outside of
+// parentheses. The leading period must already be stripped.
+func splitSelectors(s []byte) [][]byte {
+	var parts [][]byte
+
+	depth := 0
+	start := 0
+
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case '.':
+			if depth == 0 {
+				parts = append(parts, s[start:i])
+				start = i + 1
+			}
+		case '\'':
+			// Skip quoted values so that periods inside quotes are
+			// not treated as separators.
+			end := bytes.IndexByte(s[i+1:], '\'')
+			if end != -1 {
+				i += end + 1
+			}
+		}
+	}
+
+	parts = append(parts, s[start:])
+
+	return parts
+}
+
 // parseSelectors manually parses the selector chain, e.g.:
 //
 //	".meta(type='example/thing').links"
+//	".meta(type='core/event' data.date??).data{date}"
 func parseSelectors(s []byte) ([]BlockSelector, error) {
 	if len(s) == 0 {
 		return nil, nil
@@ -557,7 +735,7 @@ func parseSelectors(s []byte) ([]BlockSelector, error) {
 		return nil, fmt.Errorf("selector chain must start with '.'")
 	}
 
-	parts := bytes.Split(s[1:], bPeriod)
+	parts := splitSelectors(s[1:])
 	selectors := make([]BlockSelector, 0, len(parts))
 
 	for _, part := range parts {
@@ -569,7 +747,7 @@ func parseSelectors(s []byte) ([]BlockSelector, error) {
 
 		var selector BlockSelector
 
-		// Set and validate BlockKind
+		// Set and validate BlockKind.
 		switch BlockKind(kindStr) {
 		case BlockKindMeta, BlockKindLinks, BlockKindContent:
 			selector.Kind = BlockKind(kindStr)
@@ -577,13 +755,13 @@ func parseSelectors(s []byte) ([]BlockSelector, error) {
 			return nil, fmt.Errorf("unknown block kind: %s", kindStr)
 		}
 
-		// If there are parentheses, parse the attributes inside them
+		// If there are parentheses, parse the attributes inside them.
 		if foundParen {
 			if !bytes.HasSuffix(attrsStr, bEndParen) {
 				return nil, fmt.Errorf("mismatched parenthesis in selector: %q", part)
 			}
 
-			// Remove the trailing ')' before parsing
+			// Remove the trailing ')' before parsing.
 			attrsStr = attrsStr[:len(attrsStr)-1]
 
 			if err := parseAttributes(&selector, attrsStr); err != nil {

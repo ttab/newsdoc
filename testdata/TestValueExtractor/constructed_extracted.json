@@ -85,5 +85,46 @@
         "Name": "unpointy"
       }
     }
+  ],
+  [
+    {
+      "date": {
+        "Annotation": "date",
+        "Name": "date",
+        "Value": "2025-10-19"
+      }
+    }
+  ],
+  [
+    {
+      "date": {
+        "Annotation": "date",
+        "Name": "date",
+        "Value": "2025-10-19"
+      }
+    },
+    {
+      "date": {
+        "Annotation": "date",
+        "Name": "date",
+        "Value": "2025-10-21"
+      }
+    }
+  ],
+  [
+    {
+      "date": {
+        "Annotation": "date",
+        "Name": "date",
+        "Value": "2025-10-19"
+      }
+    },
+    {
+      "date": {
+        "Annotation": "date",
+        "Name": "date",
+        "Value": "2025-10-21"
+      }
+    }
   ]
 ]

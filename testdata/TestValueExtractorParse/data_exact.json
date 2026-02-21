@@ -1,0 +1,21 @@
+{
+  "Selectors": [
+    {
+      "DataFilters": [
+        {
+          "Key": "status",
+          "Mode": "exact",
+          "Value": "confirmed"
+        }
+      ],
+      "Kind": "meta",
+      "Type": "core/event"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}
