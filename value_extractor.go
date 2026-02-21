@@ -59,14 +59,41 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 		selector = text[:attrIdx]
 		valueSpecInner, _ = bytes.CutPrefix(text[attrIdx:], attrPrefix)
 	default:
-		return nil, fmt.Errorf("invalid format: missing .data{} or @{} value specifier")
-	}
+		ve.ValueKind = ValueKindBlock
 
-	if !bytes.HasSuffix(valueSpecInner, valuesEnd) {
-		return nil, fmt.Errorf("invalid format: expected '}' at end of value specifier")
-	}
+		nameBytes, rest, hasName := bytes.Cut(text, bEqual)
+		if !hasName {
+			return nil, fmt.Errorf(
+				"block extraction requires a name prefix (name=.selectors)")
+		}
 
-	valueSpecInner = valueSpecInner[:len(valueSpecInner)-1]
+		name := string(bytes.TrimSpace(nameBytes))
+		if name == "" {
+			return nil, fmt.Errorf("block extraction name cannot be empty")
+		}
+
+		var annotation string
+
+		// Look for an annotation suffix after the last closing paren
+		// to avoid matching ':' inside quoted attribute values.
+		afterLastParen := rest
+		if lp := bytes.LastIndex(rest, bEndParen); lp != -1 {
+			afterLastParen = rest[lp+1:]
+		}
+
+		if ci := bytes.Index(afterLastParen, bColon); ci != -1 {
+			offset := len(rest) - len(afterLastParen) + ci
+			annotation = string(bytes.TrimSpace(rest[offset+1:]))
+			rest = rest[:offset]
+		}
+
+		selector = rest
+
+		ve.Values = []ValueSpec{{
+			Name:       name,
+			Annotation: annotation,
+		}}
+	}
 
 	selectors, err := parseSelectors(selector)
 	if err != nil {
@@ -74,6 +101,21 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 	}
 
 	ve.Selectors = selectors
+
+	if ve.ValueKind == ValueKindBlock {
+		if len(ve.Selectors) == 0 {
+			return nil, fmt.Errorf(
+				"block extraction requires at least one selector")
+		}
+
+		return &ve, nil
+	}
+
+	if !bytes.HasSuffix(valueSpecInner, valuesEnd) {
+		return nil, fmt.Errorf("invalid format: expected '}' at end of value specifier")
+	}
+
+	valueSpecInner = valueSpecInner[:len(valueSpecInner)-1]
 
 	values, err := parseValues(valueSpecInner)
 	if err != nil {
@@ -137,6 +179,24 @@ func (ve *ValueExtractor) Collect(doc Document) []ExtractedItems {
 
 	var extracts []ExtractedItems
 
+	if ve.ValueKind == ValueKindBlock {
+		spec := ve.Values[0]
+
+		for b := range matches {
+			block := b
+
+			extracts = append(extracts, ExtractedItems{
+				spec.Name: {
+					Name:       spec.Name,
+					Block:      &block,
+					Annotation: spec.Annotation,
+				},
+			})
+		}
+
+		return extracts
+	}
+
 	var accessor func(b Block, name string) string
 
 	switch ve.ValueKind {
@@ -144,8 +204,8 @@ func (ve *ValueExtractor) Collect(doc Document) []ExtractedItems {
 		accessor = getBlockAttribute
 	case ValueKindData:
 		accessor = getBlockData
-	default:
-		panic(fmt.Sprintf("unexpected newsdoc.ValueKind: %#v", ve.ValueKind))
+	case ValueKindBlock:
+		panic("ValueKindBlock should have been handled above")
 	}
 
 	for b := range matches {
@@ -307,7 +367,8 @@ type ExtractedItems map[string]ExtractedValue
 
 type ExtractedValue struct {
 	Name       string
-	Value      string
+	Value      string `json:",omitempty"`
+	Block      *Block `json:",omitempty"`
 	Annotation string `json:",omitempty"`
 	Role       string `json:",omitempty"`
 }
@@ -325,6 +386,7 @@ type ValueKind string
 const (
 	ValueKindAttributes ValueKind = "attributes"
 	ValueKindData       ValueKind = "data"
+	ValueKindBlock      ValueKind = "block"
 )
 
 type BlockSelector struct {

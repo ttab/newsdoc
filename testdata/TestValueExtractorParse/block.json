@@ -1,0 +1,19 @@
+{
+  "Selectors": [
+    {
+      "Kind": "meta",
+      "Type": "example/collection"
+    },
+    {
+      "Kind": "links",
+      "Rel": "item"
+    }
+  ],
+  "ValueKind": "block",
+  "Values": [
+    {
+      "Annotation": "thing",
+      "Name": "items"
+    }
+  ]
+}

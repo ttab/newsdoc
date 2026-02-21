@@ -17,9 +17,11 @@ func TestValueExtractorParse(t *testing.T) {
 	test.Mustf(t, err, "ensure testdata dir")
 
 	cases := map[string]string{
-		"annotated":  ".meta(type='core/collection').links(rel='item').data{date:date, tz=date_timezone?}",
-		"attributes": ".content(type='example/assumed-static-tz')@{value:date}",
-		"multisel":   ".links(rel='point-in-time' type='example/pit').data{timestamp}",
+		"annotated":      ".meta(type='core/collection').links(rel='item').data{date:date, tz=date_timezone?}",
+		"attributes":     ".content(type='example/assumed-static-tz')@{value:date}",
+		"multisel":       ".links(rel='point-in-time' type='example/pit').data{timestamp}",
+		"block":          "items=.meta(type='example/collection').links(rel='item'):thing",
+		"block_no_annot": "items=.meta(type='example/collection').links(rel='item')",
 	}
 
 	for name, str := range cases {
@@ -53,6 +55,8 @@ func TestValueExtractor(t *testing.T) {
 				".meta(type='example/collection').links(rel='item').data{start, end}",
 				".content(type='example/assumed-static-tz')@{value:date}",
 				".links(rel='point-in-time' type='example/pit').data{timestamp}",
+				"pointy=.links(rel='point-in-time' type='example/pit'):interesting",
+				"unpointy=.links(rel='point-in-time' type='example/pit')",
 			},
 			Document: "constructed.json",
 		},

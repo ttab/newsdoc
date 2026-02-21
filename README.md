@@ -154,3 +154,76 @@ A revisor schema for the above format could look like this:
 
 This schema can then be used to validate documents to ensure the data quality of stored documents. It's also serves as documentation, and can be used by automated systems like a full text index provide a hint about the correct way to index the data.
 
+## Value extractor expressions
+
+The `ValueExtractor` provides a way to extract values from documents using a selector expression language. An expression consists of a chain of block selectors followed by a value specifier that determines what to extract from the matched blocks.
+
+### Selectors
+
+Selectors navigate the block hierarchy of a document. Each selector targets a block list (`meta`, `links`, or `content`) and can optionally filter by block attributes:
+
+```
+.meta                              -- all meta blocks
+.links(rel='category')             -- links with rel "category"
+.meta(type='core/note').links      -- links inside meta blocks of type "core/note"
+.content(type='core/text' role='heading')  -- content blocks matching both type and role
+```
+
+Selectors can be chained to navigate into nested blocks. The available filter attributes are: `id`, `uuid`, `uri`, `url`, `type`, `rel`, `role`, `name`, `value`, `contenttype`, and `sensitivity`.
+
+### Extracting data values
+
+Use `.data{}` to extract values from the matched blocks' data maps:
+
+```
+.meta(type='core/planning-item').data{start_date, end_date}
+```
+
+Each matched block must have all specified data keys for the extraction to succeed. Append `?` to make a value optional:
+
+```
+.meta(type='core/planning-item').data{start_date, date_tz?}
+```
+
+### Extracting block attributes
+
+Use `@{}` to extract block attribute values:
+
+```
+.content(type='core/text')@{value}
+.links(rel='author')@{uuid, title}
+```
+
+When no selectors are provided, `@{}` extracts document-level attributes (`uuid`, `type`, `uri`, `url`, `title`, `language`):
+
+```
+@{title, language}
+```
+
+### Annotations and roles
+
+Values can be annotated with a type hint using `:`, and given a role using `=` as a prefix:
+
+```
+.meta(type='core/event').data{date:date, tz=date_timezone?}
+```
+
+Here `date` has the annotation `date`, and `date_timezone` is extracted with the role `tz`. Annotations and roles are passed through in the extracted results and can be used by the caller to interpret the values.
+
+### Extracting full blocks
+
+If no `.data{}` or `@{}` value specifier is present, the expression extracts the full matched blocks. Block extraction requires a name prefix and optionally accepts an annotation:
+
+```
+name=.selectors
+name=.selectors:annotation
+```
+
+Examples:
+
+```
+items=.meta(type='core/collection').links(rel='item')
+event=.links(rel='event' type='core/event'):calendar
+```
+
+The name is used as the key in the extracted results and populates the `Name` field of the `ExtractedValue`. The matched block is available in the `Block` field.
