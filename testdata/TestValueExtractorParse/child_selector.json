@@ -1,0 +1,22 @@
+{
+  "ChildSelectors": [
+    {
+      "Kind": "links",
+      "Rel": "deliverable",
+      "UUID": "abc"
+    }
+  ],
+  "Selectors": [
+    {
+      "Kind": "meta",
+      "Type": "core/assignment"
+    }
+  ],
+  "ValueKind": "block",
+  "Values": [
+    {
+      "Annotation": "label",
+      "Name": "assignment"
+    }
+  ]
+}

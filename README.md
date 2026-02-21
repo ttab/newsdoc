@@ -188,6 +188,26 @@ Data filters can be mixed freely with attribute filters:
 .links(rel='item' data.date_timezone='Asia/Shanghai').data{date}
 ```
 
+#### Child selectors
+
+Use `#` to filter blocks by their descendants without navigating into them. The selectors after `#` form a child selector chain — the parent block is only matched if it has descendants satisfying the chain. The extraction targets the parent block, not the descendants:
+
+```
+.meta(type='core/assignment')#.links(rel='deliverable' uuid='...')
+```
+
+This selects `core/assignment` meta blocks that contain a link with `rel='deliverable'` and the given UUID. The result is the assignment block itself. Compare with the non-child version which would navigate into and return the link:
+
+```
+.meta(type='core/assignment').links(rel='deliverable' uuid='...')
+```
+
+Child selectors can be chained to match deeper descendants, and support the same attribute and data filters as regular selectors:
+
+```
+assignment=.meta(type='core/assignment')#.links(rel='deliverable' data.status='active'):label
+```
+
 ### Extracting data values
 
 Use `.data{}` to extract values from the matched blocks' data maps:

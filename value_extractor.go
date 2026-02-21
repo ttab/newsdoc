@@ -9,9 +9,10 @@ import (
 )
 
 type ValueExtractor struct {
-	Selectors []BlockSelector
-	ValueKind ValueKind
-	Values    []ValueSpec
+	Selectors      []BlockSelector
+	ChildSelectors []BlockSelector `json:",omitempty"`
+	ValueKind      ValueKind
+	Values         []ValueSpec
 }
 
 var (
@@ -26,6 +27,7 @@ var (
 	bColon      = []byte(":")
 	bQMark      = []byte("?")
 	bDataDot    = []byte("data.")
+	bHash       = []byte("#")
 )
 
 func ValueExtractorFromString(text string) (*ValueExtractor, error) {
@@ -96,12 +98,27 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 		}}
 	}
 
+	selector, childSelector, _ := bytes.Cut(selector, bHash)
+
 	selectors, err := parseSelectors(selector)
 	if err != nil {
 		return nil, err
 	}
 
 	ve.Selectors = selectors
+
+	if len(childSelector) > 0 {
+		childSelectors, err := parseSelectors(childSelector)
+		if err != nil {
+			return nil, fmt.Errorf("child selectors: %w", err)
+		}
+
+		if len(childSelectors) == 0 {
+			return nil, fmt.Errorf("empty child selector after '#'")
+		}
+
+		ve.ChildSelectors = childSelectors
+	}
 
 	if ve.ValueKind == ValueKindBlock {
 		if len(ve.Selectors) == 0 {
@@ -176,6 +193,23 @@ func (ve *ValueExtractor) Collect(doc Document) []ExtractedItems {
 		}
 
 		matches = sel.Iterator(concatIter(srcBlocks...))
+	}
+
+	if len(ve.ChildSelectors) > 0 {
+		childSelectors := ve.ChildSelectors
+		prev := matches
+
+		matches = func(yield func(Block) bool) {
+			for b := range prev {
+				if !hasMatchingChildren(b, childSelectors) {
+					continue
+				}
+
+				if !yield(b) {
+					return
+				}
+			}
+		}
 	}
 
 	var extracts []ExtractedItems
@@ -415,6 +449,7 @@ type BlockSelector struct {
 	Kind BlockKind
 
 	ID          *string      `json:",omitempty"`
+	UUID        *string      `json:",omitempty"`
 	URI         *string      `json:",omitempty"`
 	URL         *string      `json:",omitempty"`
 	Type        *string      `json:",omitempty"`
@@ -454,6 +489,54 @@ func concatIter[V any](seqs ...iter.Seq[V]) iter.Seq[V] {
 	}
 }
 
+// hasMatchingChildren checks if a block has descendants matching the given
+// child selector chain.
+func hasMatchingChildren(b Block, selectors []BlockSelector) bool {
+	if len(selectors) == 0 {
+		return true
+	}
+
+	first := selectors[0]
+
+	var blocks []Block
+
+	switch first.Kind {
+	case BlockKindContent:
+		blocks = b.Content
+	case BlockKindLinks:
+		blocks = b.Links
+	case BlockKindMeta:
+		blocks = b.Meta
+	}
+
+	matches := first.Iterator(slices.Values(blocks))
+
+	for i := 1; i < len(selectors); i++ {
+		sel := selectors[i]
+
+		var srcBlocks []iter.Seq[Block]
+
+		for m := range matches {
+			switch sel.Kind {
+			case BlockKindContent:
+				srcBlocks = append(srcBlocks, slices.Values(m.Content))
+			case BlockKindLinks:
+				srcBlocks = append(srcBlocks, slices.Values(m.Links))
+			case BlockKindMeta:
+				srcBlocks = append(srcBlocks, slices.Values(m.Meta))
+			}
+		}
+
+		matches = sel.Iterator(concatIter(srcBlocks...))
+	}
+
+	for range matches {
+		return true
+	}
+
+	return false
+}
+
 func (bs BlockSelector) Filter(blocks []Block) []Block {
 	return slices.Collect(bs.Iterator(slices.Values(blocks)))
 }
@@ -461,6 +544,8 @@ func (bs BlockSelector) Filter(blocks []Block) []Block {
 func (bs BlockSelector) Matches(b Block) bool {
 	switch {
 	case bs.ID != nil && b.ID != *bs.ID:
+		return false
+	case bs.UUID != nil && b.UUID != *bs.UUID:
 		return false
 	case bs.URI != nil && b.URI != *bs.URI:
 		return false
@@ -515,6 +600,8 @@ func setSelectorField(selector *BlockSelector, key, value string) error {
 	switch key {
 	case "id":
 		selector.ID = vPtr
+	case "uuid":
+		selector.UUID = vPtr
 	case "uri":
 		selector.URI = vPtr
 	case "url":

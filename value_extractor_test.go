@@ -26,6 +26,7 @@ func TestValueExtractorParse(t *testing.T) {
 		"data_exists":      ".meta(type='core/event' data.date?).data{date}",
 		"data_non_empty":   ".meta(type='core/event' data.date??).data{date}",
 		"data_multi_mixed": ".meta(type='core/event' data.date?? data.status='confirmed').data{date}",
+		"child_selector":   "assignment=.meta(type='core/assignment')#.links(rel='deliverable' uuid='abc'):label",
 	}
 
 	for name, str := range cases {
@@ -75,6 +76,7 @@ func TestValueExtractor(t *testing.T) {
 				".meta(type='core/planning-item').data{start_date, date_tz?}",
 				".meta(type='core/assignment').links(rel='deliverable')@{uuid}",
 				"block=.meta(type='core/assignment').links(rel='deliverable' data.nonesuch='value')",
+				"assignment=.meta(type='core/assignment')#.links(rel='deliverable' uuid='4f13347f-04b3-4f22-a992-9316d824b81f')",
 			},
 			Document: "planning.json",
 		},

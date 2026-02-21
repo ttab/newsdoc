@@ -19,5 +19,45 @@
       }
     }
   ],
-  null
+  null,
+  [
+    {
+      "assignment": {
+        "Block": {
+          "data": {
+            "date_tz": "Europe/Stockholm",
+            "end": "2024-09-09T12:00:00Z",
+            "end_date": "2024-09-09",
+            "full_day": "false",
+            "public": "true",
+            "start": "2024-09-09T10:00:00Z",
+            "start_date": "2024-09-09"
+          },
+          "id": "54ed5440-1fa7-4516-a13c-dfd4166e9f37",
+          "links": [
+            {
+              "rel": "source-document",
+              "title": "A newswire",
+              "type": "tt/wire",
+              "uuid": "1aedf55d-789a-4905-afe2-12d26a5c83c1"
+            },
+            {
+              "rel": "deliverable",
+              "type": "core/article",
+              "uuid": "4f13347f-04b3-4f22-a992-9316d824b81f"
+            }
+          ],
+          "meta": [
+            {
+              "type": "core/assignment-type",
+              "value": "text"
+            }
+          ],
+          "title": "start prel 13.45: minst 1|800 tecken under eftermiddagen",
+          "type": "core/assignment"
+        },
+        "Name": "assignment"
+      }
+    }
+  ]
 ]
