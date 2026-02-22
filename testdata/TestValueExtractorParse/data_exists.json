@@ -1,14 +1,22 @@
 {
   "Selectors": [
     {
-      "DataFilters": [
-        {
-          "Key": "date",
-          "Mode": "exists"
-        }
-      ],
-      "Kind": "meta",
-      "Type": "core/event"
+      "Filter": {
+        "Children": [
+          {
+            "Attr": "type",
+            "Value": "core/event"
+          },
+          {
+            "Data": {
+              "Key": "date",
+              "Mode": "exists"
+            }
+          }
+        ],
+        "Op": "and"
+      },
+      "Kind": "meta"
     }
   ],
   "ValueKind": "data",

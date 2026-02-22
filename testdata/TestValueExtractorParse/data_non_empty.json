@@ -1,14 +1,22 @@
 {
   "Selectors": [
     {
-      "DataFilters": [
-        {
-          "Key": "date",
-          "Mode": "non-empty"
-        }
-      ],
-      "Kind": "meta",
-      "Type": "core/event"
+      "Filter": {
+        "Children": [
+          {
+            "Attr": "type",
+            "Value": "core/event"
+          },
+          {
+            "Data": {
+              "Key": "date",
+              "Mode": "non-empty"
+            }
+          }
+        ],
+        "Op": "and"
+      },
+      "Kind": "meta"
     }
   ],
   "ValueKind": "data",

@@ -4,18 +4,21 @@
       "Filter": {
         "Children": [
           {
-            "Attr": "type",
-            "Value": "core/event"
+            "Data": {
+              "Key": "status",
+              "Mode": "exact",
+              "Value": "draft"
+            }
           },
           {
             "Data": {
-              "Key": "format",
+              "Key": "status",
               "Mode": "exact",
-              "Value": ".data{x}"
+              "Value": "review"
             }
           }
         ],
-        "Op": "and"
+        "Op": "or"
       },
       "Kind": "meta"
     }

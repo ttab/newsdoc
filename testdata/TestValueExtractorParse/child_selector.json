@@ -1,15 +1,29 @@
 {
   "ChildSelectors": [
     {
-      "Kind": "links",
-      "Rel": "deliverable",
-      "UUID": "abc"
+      "Filter": {
+        "Children": [
+          {
+            "Attr": "rel",
+            "Value": "deliverable"
+          },
+          {
+            "Attr": "uuid",
+            "Value": "abc"
+          }
+        ],
+        "Op": "and"
+      },
+      "Kind": "links"
     }
   ],
   "Selectors": [
     {
-      "Kind": "meta",
-      "Type": "core/assignment"
+      "Filter": {
+        "Attr": "type",
+        "Value": "core/assignment"
+      },
+      "Kind": "meta"
     }
   ],
   "ValueKind": "block",

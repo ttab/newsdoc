@@ -4,18 +4,15 @@
       "Filter": {
         "Children": [
           {
-            "Attr": "type",
-            "Value": "core/event"
+            "Attr": "value",
+            "Value": "text"
           },
           {
-            "Data": {
-              "Key": "format",
-              "Mode": "exact",
-              "Value": ".data{x}"
-            }
+            "Attr": "value",
+            "Value": "picture"
           }
         ],
-        "Op": "and"
+        "Op": "or"
       },
       "Kind": "meta"
     }

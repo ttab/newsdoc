@@ -5,14 +5,20 @@
         "Children": [
           {
             "Attr": "type",
-            "Value": "core/event"
+            "Value": "core/thing"
           },
           {
-            "Data": {
-              "Key": "format",
-              "Mode": "exact",
-              "Value": ".data{x}"
-            }
+            "Children": [
+              {
+                "Attr": "value",
+                "Value": "a"
+              },
+              {
+                "Attr": "value",
+                "Value": "b"
+              }
+            ],
+            "Op": "or"
           }
         ],
         "Op": "and"

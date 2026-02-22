@@ -1,8 +1,11 @@
 {
   "Selectors": [
     {
-      "Kind": "content",
-      "Value": "@{placeholder}"
+      "Filter": {
+        "Attr": "value",
+        "Value": "@{placeholder}"
+      },
+      "Kind": "content"
     }
   ],
   "ValueKind": "attributes",

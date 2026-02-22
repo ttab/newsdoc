@@ -1,0 +1,39 @@
+{
+  "Selectors": [
+    {
+      "Filter": {
+        "Children": [
+          {
+            "Attr": "type",
+            "Value": "core/event"
+          },
+          {
+            "Children": [
+              {
+                "Data": {
+                  "Key": "date",
+                  "Mode": "non-empty"
+                }
+              },
+              {
+                "Data": {
+                  "Key": "start",
+                  "Mode": "non-empty"
+                }
+              }
+            ],
+            "Op": "or"
+          }
+        ],
+        "Op": "and"
+      },
+      "Kind": "meta"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

@@ -1,9 +1,20 @@
 {
   "Selectors": [
     {
-      "Kind": "links",
-      "Rel": "point-in-time",
-      "Type": "example/pit"
+      "Filter": {
+        "Children": [
+          {
+            "Attr": "rel",
+            "Value": "point-in-time"
+          },
+          {
+            "Attr": "type",
+            "Value": "example/pit"
+          }
+        ],
+        "Op": "and"
+      },
+      "Kind": "links"
     }
   ],
   "ValueKind": "data",

@@ -1,12 +1,18 @@
 {
   "Selectors": [
     {
-      "Kind": "meta",
-      "Type": "core/collection"
+      "Filter": {
+        "Attr": "type",
+        "Value": "core/collection"
+      },
+      "Kind": "meta"
     },
     {
-      "Kind": "links",
-      "Rel": "item"
+      "Filter": {
+        "Attr": "rel",
+        "Value": "item"
+      },
+      "Kind": "links"
     }
   ],
   "ValueKind": "data",

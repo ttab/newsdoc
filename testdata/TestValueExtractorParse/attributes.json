@@ -1,8 +1,11 @@
 {
   "Selectors": [
     {
-      "Kind": "content",
-      "Type": "example/assumed-static-tz"
+      "Filter": {
+        "Attr": "type",
+        "Value": "example/assumed-static-tz"
+      },
+      "Kind": "content"
     }
   ],
   "ValueKind": "attributes",

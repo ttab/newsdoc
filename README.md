@@ -169,7 +169,7 @@ Selectors navigate the block hierarchy of a document. Each selector targets a bl
 .content(type='core/text' role='heading')  -- content blocks matching both type and role
 ```
 
-Selectors can be chained to navigate into nested blocks. The available filter attributes are: `id`, `uuid`, `uri`, `url`, `type`, `rel`, `role`, `name`, `value`, `contenttype`, and `sensitivity`.
+Selectors can be chained to navigate into nested blocks. The available filter attributes are: `id`, `uuid`, `uri`, `url`, `type`, `rel`, `role`, `name`, `value`, `contenttype`, and `sensitivity`. Attribute values are single-quoted; use `\'` to escape a literal quote inside a value.
 
 #### Data filters
 
@@ -186,6 +186,38 @@ Data filters can be mixed freely with attribute filters:
 ```
 .meta(type='core/event' data.date?? data.status='confirmed').data{date}
 .links(rel='item' data.date_timezone='Asia/Shanghai').data{date}
+```
+
+#### Combining conditions with `or` and grouping
+
+By default, multiple conditions inside a selector are combined with implicit AND — a block must satisfy all of them. Use the `or` keyword to match blocks satisfying at least one alternative:
+
+```
+.meta(value='text' or value='picture')
+```
+
+AND binds tighter than `or`, so conditions separated by spaces are grouped together before `or` is applied. To control precedence, use parentheses:
+
+```
+.meta(type='core/thing' (value='a' or value='b'))
+```
+
+This matches meta blocks with `type='core/thing'` AND either `value='a'` or `value='b'`. Without the inner parentheses, the expression would be parsed as `(type='core/thing' value='a') or value='b'`.
+
+Parenthesized groups can be nested and combined freely with attribute and data filters:
+
+```
+-- OR between two AND groups
+.meta((type='a' value='x') or (type='b' value='y'))
+
+-- OR between data filters
+.meta(data.status='draft' or data.status='review')
+
+-- Nested groups
+.meta((type='a' (value='x' or value='y')) or (type='b' value='z'))
+
+-- Three-way OR
+.meta(value='text' or value='picture' or value='video')
 ```
 
 #### Child selectors

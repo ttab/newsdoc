@@ -1,8 +1,11 @@
 {
   "Selectors": [
     {
-      "Kind": "meta",
-      "Type": "x@{y}"
+      "Filter": {
+        "Attr": "type",
+        "Value": "x@{y}"
+      },
+      "Kind": "meta"
     }
   ],
   "ValueKind": "data",

@@ -536,22 +536,81 @@ type DataFilter struct {
 	Mode  DataFilterMode
 }
 
+// matches reports whether the data filter matches the given block.
+func (df DataFilter) matches(b Block) bool {
+	switch df.Mode {
+	case DataFilterExact:
+		return b.Data.Get(df.Key, "") == df.Value
+	case DataFilterExists:
+		_, ok := b.Data[df.Key]
+
+		return ok
+	case DataFilterNonEmpty:
+		return b.Data.Get(df.Key, "") != ""
+	}
+
+	return false
+}
+
+// FilterOp is the boolean operator for a filter node.
+type FilterOp string
+
+const (
+	// FilterOpAnd combines children with logical AND.
+	FilterOpAnd FilterOp = "and"
+	// FilterOpOr combines children with logical OR.
+	FilterOpOr FilterOp = "or"
+)
+
+// FilterNode is a node in a boolean filter expression tree. Branch nodes have
+// Op and Children set; leaf nodes have either Attr+Value (attribute match) or
+// Data (data filter) set.
+type FilterNode struct {
+	Op       FilterOp     `json:",omitempty"`
+	Children []FilterNode `json:",omitempty"`
+	Attr     string       `json:",omitempty"`
+	Value    string       `json:",omitempty"`
+	Data     *DataFilter  `json:",omitempty"`
+}
+
+// Matches reports whether the filter node matches the given block. A nil node
+// matches all blocks.
+func (fn *FilterNode) Matches(b Block) bool {
+	if fn == nil {
+		return true
+	}
+
+	switch fn.Op {
+	case FilterOpAnd:
+		for _, child := range fn.Children {
+			if !child.Matches(b) {
+				return false
+			}
+		}
+
+		return true
+	case FilterOpOr:
+		for _, child := range fn.Children {
+			if child.Matches(b) {
+				return true
+			}
+		}
+
+		return false
+	default:
+		// Leaf node.
+		if fn.Data != nil {
+			return fn.Data.matches(b)
+		}
+
+		return getBlockAttribute(b, fn.Attr) == fn.Value
+	}
+}
+
 // BlockSelector selects blocks by kind and optional attribute/data filters.
 type BlockSelector struct {
-	Kind BlockKind
-
-	ID          *string      `json:",omitempty"`
-	UUID        *string      `json:",omitempty"`
-	URI         *string      `json:",omitempty"`
-	URL         *string      `json:",omitempty"`
-	Type        *string      `json:",omitempty"`
-	Rel         *string      `json:",omitempty"`
-	Role        *string      `json:",omitempty"`
-	Name        *string      `json:",omitempty"`
-	Value       *string      `json:",omitempty"`
-	Contenttype *string      `json:",omitempty"`
-	Sensitivity *string      `json:",omitempty"`
-	DataFilters []DataFilter `json:",omitempty"`
+	Kind   BlockKind
+	Filter *FilterNode `json:",omitempty"`
 }
 
 func (bs BlockSelector) Iterator(blocks iter.Seq[Block]) iter.Seq[Block] {
@@ -629,167 +688,309 @@ func hasMatchingChildren(b Block, selectors []BlockSelector) bool {
 	return false
 }
 
-func (bs BlockSelector) Filter(blocks []Block) []Block {
+func (bs BlockSelector) FilterBlocks(blocks []Block) []Block {
 	return slices.Collect(bs.Iterator(slices.Values(blocks)))
 }
 
 func (bs BlockSelector) Matches(b Block) bool {
-	switch {
-	case bs.ID != nil && b.ID != *bs.ID:
-		return false
-	case bs.UUID != nil && b.UUID != *bs.UUID:
-		return false
-	case bs.URI != nil && b.URI != *bs.URI:
-		return false
-	case bs.URL != nil && b.URL != *bs.URL:
-		return false
-	case bs.Type != nil && b.Type != *bs.Type:
-		return false
-	case bs.Rel != nil && b.Rel != *bs.Rel:
-		return false
-	case bs.Role != nil && b.Role != *bs.Role:
-		return false
-	case bs.Name != nil && b.Name != *bs.Name:
-		return false
-	case bs.Value != nil && b.Value != *bs.Value:
-		return false
-	case bs.Contenttype != nil && b.Contenttype != *bs.Contenttype:
-		return false
-	case bs.Sensitivity != nil && b.Sensitivity != *bs.Sensitivity:
-		return false
-	}
-
-	for _, df := range bs.DataFilters {
-		switch df.Mode {
-		case DataFilterExact:
-			if b.Data.Get(df.Key, "") != df.Value {
-				return false
-			}
-		case DataFilterExists:
-			_, ok := b.Data[df.Key]
-			if !ok {
-				return false
-			}
-		case DataFilterNonEmpty:
-			if b.Data.Get(df.Key, "") == "" {
-				return false
-			}
-		}
-	}
-
-	return true
+	return bs.Filter.Matches(b)
 }
 
-func strPtr(s string) *string {
-	return &s
+var validAttributeKeys = map[string]struct{}{
+	"id":          {},
+	"uuid":        {},
+	"uri":         {},
+	"url":         {},
+	"type":        {},
+	"rel":         {},
+	"role":        {},
+	"name":        {},
+	"value":       {},
+	"contenttype": {},
+	"sensitivity": {},
 }
 
-// setSelectorField assigns a value to the correct field in BlockSelector based
-// on the key.
-func setSelectorField(selector *BlockSelector, key, value string) error {
-	vPtr := strPtr(value)
-
-	switch key {
-	case "id":
-		selector.ID = vPtr
-	case "uuid":
-		selector.UUID = vPtr
-	case "uri":
-		selector.URI = vPtr
-	case "url":
-		selector.URL = vPtr
-	case "type":
-		selector.Type = vPtr
-	case "rel":
-		selector.Rel = vPtr
-	case "role":
-		selector.Role = vPtr
-	case "name":
-		selector.Name = vPtr
-	case "value":
-		selector.Value = vPtr
-	case "contenttype":
-		selector.Contenttype = vPtr
-	case "sensitivity":
-		selector.Sensitivity = vPtr
-	default:
+// validateAttributeKey checks that key is a known block attribute.
+func validateAttributeKey(key string) error {
+	if _, ok := validAttributeKeys[key]; !ok {
 		return fmt.Errorf("unknown attribute key: %s", key)
 	}
 
 	return nil
 }
 
-// parseAttributes parses the attribute string, e.g.:
+// attrParser is a recursive descent parser for attribute filter expressions.
+type attrParser struct {
+	input []byte
+	pos   int
+}
+
+func (p *attrParser) skipSpace() {
+	for p.pos < len(p.input) && p.input[p.pos] == ' ' {
+		p.pos++
+	}
+}
+
+func (p *attrParser) atEnd() bool {
+	return p.pos >= len(p.input)
+}
+
+func (p *attrParser) peek() byte {
+	if p.pos >= len(p.input) {
+		return 0
+	}
+
+	return p.input[p.pos]
+}
+
+// isOrKeyword reports whether the input at the current position is the "or"
+// keyword. We require a word boundary (space, ')' or end of input) after "or"
+// to avoid matching keys like "order".
+func (p *attrParser) isOrKeyword() bool {
+	if p.pos+2 > len(p.input) {
+		return false
+	}
+
+	if p.input[p.pos] != 'o' || p.input[p.pos+1] != 'r' {
+		return false
+	}
+
+	if p.pos+2 == len(p.input) {
+		return true
+	}
+
+	c := p.input[p.pos+2]
+
+	return c == ' ' || c == ')'
+}
+
+// parseOrExpr parses: or_expr = and_expr ('or' and_expr)*.
+func (p *attrParser) parseOrExpr() (FilterNode, error) {
+	left, err := p.parseAndExpr()
+	if err != nil {
+		return FilterNode{}, err
+	}
+
+	children := []FilterNode{left}
+
+	for {
+		p.skipSpace()
+
+		if !p.isOrKeyword() {
+			break
+		}
+
+		p.pos += 2 // consume "or"
+
+		p.skipSpace()
+
+		if p.atEnd() || p.peek() == ')' {
+			return FilterNode{}, fmt.Errorf(
+				"unexpected end after 'or' at position %d", p.pos)
+		}
+
+		child, err := p.parseAndExpr()
+		if err != nil {
+			return FilterNode{}, err
+		}
+
+		children = append(children, child)
+	}
+
+	if len(children) == 1 {
+		return children[0], nil
+	}
+
+	return FilterNode{
+		Op:       FilterOpOr,
+		Children: children,
+	}, nil
+}
+
+// parseAndExpr parses: and_expr = factor (factor)*. Implicit AND via
+// space-separated factors.
+func (p *attrParser) parseAndExpr() (FilterNode, error) {
+	first, err := p.parseFactor()
+	if err != nil {
+		return FilterNode{}, err
+	}
+
+	children := []FilterNode{first}
+
+	for {
+		p.skipSpace()
+
+		if p.atEnd() || p.peek() == ')' || p.isOrKeyword() {
+			break
+		}
+
+		child, err := p.parseFactor()
+		if err != nil {
+			return FilterNode{}, err
+		}
+
+		children = append(children, child)
+	}
+
+	if len(children) == 1 {
+		return children[0], nil
+	}
+
+	return FilterNode{
+		Op:       FilterOpAnd,
+		Children: children,
+	}, nil
+}
+
+// parseFactor parses: factor = '(' or_expr ')' | atom.
+func (p *attrParser) parseFactor() (FilterNode, error) {
+	if p.atEnd() {
+		return FilterNode{}, fmt.Errorf("unexpected end of attributes")
+	}
+
+	if p.isOrKeyword() {
+		return FilterNode{}, fmt.Errorf(
+			"unexpected 'or' at position %d", p.pos)
+	}
+
+	if p.peek() == ')' {
+		return FilterNode{}, fmt.Errorf(
+			"unexpected ')' at position %d", p.pos)
+	}
+
+	if p.peek() == '(' {
+		p.pos++ // consume '('
+
+		p.skipSpace()
+
+		if p.atEnd() {
+			return FilterNode{}, fmt.Errorf(
+				"unexpected end after '(' at position %d", p.pos)
+		}
+
+		node, err := p.parseOrExpr()
+		if err != nil {
+			return FilterNode{}, err
+		}
+
+		p.skipSpace()
+
+		if p.atEnd() || p.peek() != ')' {
+			return FilterNode{}, fmt.Errorf(
+				"expected ')' to close group at position %d", p.pos)
+		}
+
+		p.pos++ // consume ')'
+
+		return node, nil
+	}
+
+	return p.parseAtom()
+}
+
+// parseAtom parses: atom = data_filter | attr_match.
+func (p *attrParser) parseAtom() (FilterNode, error) {
+	if bytes.HasPrefix(p.input[p.pos:], bDataDot) {
+		df, n, err := parseDataFilter(p.input[p.pos:])
+		if err != nil {
+			return FilterNode{}, err
+		}
+
+		p.pos += n
+
+		return FilterNode{Data: &df}, nil
+	}
+
+	return p.parseAttrMatch()
+}
+
+// parseAttrMatch parses: key '=' quoted_value.
+func (p *attrParser) parseAttrMatch() (FilterNode, error) {
+	rest := p.input[p.pos:]
+
+	eqIdx := bytes.IndexByte(rest, '=')
+	if eqIdx == -1 {
+		return FilterNode{}, fmt.Errorf(
+			"invalid attribute format, expected '=' in: %q", rest)
+	}
+
+	key := bytes.TrimSpace(rest[:eqIdx])
+
+	if err := validateAttributeKey(string(key)); err != nil {
+		return FilterNode{}, err
+	}
+
+	p.pos += eqIdx + 1 // past the '='
+
+	// Skip leading space before the quoted value.
+	p.skipSpace()
+
+	if p.atEnd() {
+		return FilterNode{}, fmt.Errorf(
+			"missing value for attribute key: %q", key)
+	}
+
+	if p.peek() != '\'' {
+		return FilterNode{}, fmt.Errorf(
+			"attribute value must be quoted: %q", p.input[p.pos:])
+	}
+
+	p.pos++ // skip opening quote
+
+	endQuote := findClosingQuote(p.input[p.pos:])
+	if endQuote == -1 {
+		return FilterNode{}, fmt.Errorf(
+			"unterminated quoted value in: %q", p.input[p.pos-1:])
+	}
+
+	value := unescapeQuoted(p.input[p.pos : p.pos+endQuote])
+	p.pos += endQuote + 1 // skip past closing quote
+
+	return FilterNode{
+		Attr:  string(key),
+		Value: string(value),
+	}, nil
+}
+
+// parseAttributes parses the attribute filter expression, e.g.:
 //
 //	"type='core/text' rel='item'"
 //	"type='core/event' data.date?? data.status='confirmed'"
-func parseAttributes(selector *BlockSelector, attrsStr []byte) error {
-	remaining := bytes.TrimSpace(attrsStr)
+//	"type='core/thing' (value='a' or value='b')"
+func parseAttributes(attrsStr []byte) (*FilterNode, error) {
+	p := &attrParser{input: bytes.TrimSpace(attrsStr)}
 
-	for len(remaining) != 0 {
-		// Check for data filter prefix before trying to parse as
-		// a regular attribute.
-		if bytes.HasPrefix(remaining, bDataDot) {
-			df, n, err := parseDataFilter(remaining)
-			if err != nil {
-				return err
-			}
-
-			selector.DataFilters = append(selector.DataFilters, df)
-			remaining = bytes.TrimSpace(remaining[n:])
-
-			continue
-		}
-
-		key, valPart, foundEq := bytes.Cut(remaining, bEqual)
-		if !foundEq {
-			return fmt.Errorf("invalid attribute format, expected '=' in: %q", remaining)
-		}
-
-		key = bytes.TrimSpace(key)
-
-		valPart = bytes.TrimSpace(valPart)
-		if len(valPart) == 0 {
-			return fmt.Errorf("missing value for attribute key: %q", key)
-		}
-
-		quote := valPart[0]
-		if quote != '\'' {
-			return fmt.Errorf("attribute value must be quoted: %q", valPart)
-		}
-
-		// Find the closing quote, starting after the opening one,
-		// skipping escaped quotes (\').
-		endQuoteIndex := findClosingQuote(valPart[1:])
-		if endQuoteIndex == -1 {
-			return fmt.Errorf("unterminated quoted value in: %q", valPart)
-		}
-
-		// The index is relative to valPart[1:], increment to get the
-		// absolute index in valPart.
-		endQuoteIndex++
-
-		value := unescapeQuoted(valPart[1:endQuoteIndex])
-
-		// Assign the value to the selector.
-		if err := setSelectorField(selector, string(key), string(value)); err != nil {
-			return err
-		}
-
-		remaining = bytes.TrimSpace(valPart[endQuoteIndex+1:])
+	node, err := p.parseOrExpr()
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	p.skipSpace()
+
+	if !p.atEnd() {
+		return nil, fmt.Errorf(
+			"unexpected content after attributes: %q", p.input[p.pos:])
+	}
+
+	return &node, nil
 }
 
 // parseDataFilter parses a data filter token from the start of b. It returns
 // the parsed filter and the number of bytes consumed. The input must start with
 // "data.".
 func parseDataFilter(b []byte) (DataFilter, int, error) {
-	// Find the end of this token (next space or end of input).
-	tokenEnd := bytes.IndexByte(b, ' ')
-	if tokenEnd == -1 {
-		tokenEnd = len(b)
+	// Find the end of this token (next space, ')' or end of input).
+	spaceIdx := bytes.IndexByte(b, ' ')
+	parenIdx := bytes.IndexByte(b, ')')
+
+	tokenEnd := len(b)
+
+	if spaceIdx != -1 {
+		tokenEnd = spaceIdx
+	}
+
+	if parenIdx != -1 && parenIdx < tokenEnd {
+		tokenEnd = parenIdx
 	}
 
 	token := b[:tokenEnd]
@@ -942,10 +1143,15 @@ func parseSelectors(s []byte) ([]BlockSelector, error) {
 			}
 
 			// Remove the trailing ')' before parsing.
-			attrsStr = attrsStr[:len(attrsStr)-1]
+			attrsStr = bytes.TrimSpace(attrsStr[:len(attrsStr)-1])
 
-			if err := parseAttributes(&selector, attrsStr); err != nil {
-				return nil, err
+			if len(attrsStr) > 0 {
+				filter, err := parseAttributes(attrsStr)
+				if err != nil {
+					return nil, err
+				}
+
+				selector.Filter = filter
 			}
 		}
 

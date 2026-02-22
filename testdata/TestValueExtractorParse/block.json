@@ -1,12 +1,18 @@
 {
   "Selectors": [
     {
-      "Kind": "meta",
-      "Type": "example/collection"
+      "Filter": {
+        "Attr": "type",
+        "Value": "example/collection"
+      },
+      "Kind": "meta"
     },
     {
-      "Kind": "links",
-      "Rel": "item"
+      "Filter": {
+        "Attr": "rel",
+        "Value": "item"
+      },
+      "Kind": "links"
     }
   ],
   "ValueKind": "block",

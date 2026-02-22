@@ -39,6 +39,15 @@ func TestValueExtractorParse(t *testing.T) {
 		"quoted_dotdata_brace_filt":    ".meta(type='core/event' data.format='.data{x}').data{date}",
 		"quoted_hash_in_data_filter":   ".meta(type='core/event' data.tag='news#breaking').data{date}",
 		"escaped_quote_in_data_filter": ".meta(type='core/event' data.tag='it\\'s breaking').data{date}",
+
+		// OR operator and parenthesized grouping.
+		"or_simple":      ".meta(value='text' or value='picture').data{date}",
+		"or_with_type":   ".meta(type='core/thing' (value='a' or value='b')).data{date}",
+		"or_three_way":   ".meta(value='text' or value='picture' or value='video').data{date}",
+		"grouped_or_and": ".meta((type='a' value='x') or (type='b' value='y')).data{date}",
+		"or_data_filter": ".meta(data.status='draft' or data.status='review').data{date}",
+		"nested_groups":  ".meta((type='a' (value='x' or value='y')) or (type='b' value='z')).data{date}",
+		"or_data_exists": ".meta(type='core/event' (data.date?? or data.start??)).data{date}",
 	}
 
 	for name, str := range cases {
@@ -48,6 +57,28 @@ func TestValueExtractorParse(t *testing.T) {
 
 			test.AgainstGolden(t, regenerate, ve,
 				filepath.Join(dataDir, name+".json"))
+		})
+	}
+}
+
+func TestValueExtractorParseErrors(t *testing.T) {
+	cases := map[string]string{
+		"unmatched_open_paren":  ".meta((type='a').data{date}",
+		"unmatched_close_paren": ".meta(type='a')).data{date}",
+		"empty_group":           ".meta(()).data{date}",
+		"leading_or":            ".meta(or type='a').data{date}",
+		"trailing_or":           ".meta(type='a' or).data{date}",
+		"double_or":             ".meta(type='a' or or type='b').data{date}",
+	}
+
+	for name, str := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := newsdoc.ValueExtractorFromString(str)
+			if err == nil {
+				t.Fatalf("expected error for %q, got nil", str)
+			}
+
+			t.Logf("got expected error: %v", err)
 		})
 	}
 }
@@ -88,6 +119,7 @@ func TestValueExtractor(t *testing.T) {
 				".meta(type='core/planning-item').data{start_date, date_tz?}",
 				".meta(type='core/assignment').links(rel='deliverable')@{uuid}",
 				"block=.meta(type='core/assignment').links(rel='deliverable' data.nonesuch='value')",
+				// Child selector: get all assignment that reference a given deliverable.
 				"assignment=.meta(type='core/assignment')#.links(rel='deliverable' uuid='4f13347f-04b3-4f22-a992-9316d824b81f')",
 			},
 			Document: "planning.json",

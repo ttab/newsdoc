@@ -1,12 +1,18 @@
 {
   "Selectors": [
     {
-      "Kind": "meta",
-      "Type": "core/tagged#v2"
+      "Filter": {
+        "Attr": "type",
+        "Value": "core/tagged#v2"
+      },
+      "Kind": "meta"
     },
     {
-      "Kind": "links",
-      "Rel": "item"
+      "Filter": {
+        "Attr": "rel",
+        "Value": "item"
+      },
+      "Kind": "links"
     }
   ],
   "ValueKind": "block",

@@ -1,15 +1,23 @@
 {
   "Selectors": [
     {
-      "DataFilters": [
-        {
-          "Key": "tag",
-          "Mode": "exact",
-          "Value": "news#breaking"
-        }
-      ],
-      "Kind": "meta",
-      "Type": "core/event"
+      "Filter": {
+        "Children": [
+          {
+            "Attr": "type",
+            "Value": "core/event"
+          },
+          {
+            "Data": {
+              "Key": "tag",
+              "Mode": "exact",
+              "Value": "news#breaking"
+            }
+          }
+        ],
+        "Op": "and"
+      },
+      "Kind": "meta"
     }
   ],
   "ValueKind": "data",

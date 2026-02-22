@@ -1,15 +1,23 @@
 {
   "Selectors": [
     {
-      "DataFilters": [
-        {
-          "Key": "status",
-          "Mode": "exact",
-          "Value": "confirmed"
-        }
-      ],
-      "Kind": "meta",
-      "Type": "core/event"
+      "Filter": {
+        "Children": [
+          {
+            "Attr": "type",
+            "Value": "core/event"
+          },
+          {
+            "Data": {
+              "Key": "status",
+              "Mode": "exact",
+              "Value": "confirmed"
+            }
+          }
+        ],
+        "Op": "and"
+      },
+      "Kind": "meta"
     }
   ],
   "ValueKind": "data",
