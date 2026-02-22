@@ -27,8 +27,92 @@ var (
 	bColon      = []byte(":")
 	bQMark      = []byte("?")
 	bDataDot    = []byte("data.")
-	bHash       = []byte("#")
+	bQuote      = byte('\'')
+	bBackslash  = byte('\\')
 )
+
+// findClosingQuote returns the index of the closing single quote in s,
+// skipping escaped quotes (\'). The input s must start after the opening
+// quote. Returns -1 if no unescaped closing quote is found.
+func findClosingQuote(s []byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == bBackslash && i+1 < len(s) {
+			i++
+
+			continue
+		}
+
+		if s[i] == bQuote {
+			return i
+		}
+	}
+
+	return -1
+}
+
+// unescapeQuoted removes backslash escapes from a quoted value, turning \' into
+// ' and \\ into \.
+func unescapeQuoted(s []byte) []byte {
+	if !bytes.ContainsRune(s, '\\') {
+		return s
+	}
+
+	out := make([]byte, 0, len(s))
+
+	for i := 0; i < len(s); i++ {
+		if s[i] == bBackslash && i+1 < len(s) {
+			i++
+		}
+
+		out = append(out, s[i])
+	}
+
+	return out
+}
+
+// indexByteOutsideQuotes returns the index of the first occurrence of c in s
+// that is not inside a single-quoted string, or -1 if not found.
+func indexByteOutsideQuotes(s []byte, c byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == bQuote {
+			end := findClosingQuote(s[i+1:])
+			if end != -1 {
+				i += end + 1
+			}
+
+			continue
+		}
+
+		if s[i] == c {
+			return i
+		}
+	}
+
+	return -1
+}
+
+// lastIndexOutsideQuotes returns the index of the last occurrence of sep in s
+// that starts outside a single-quoted string, or -1 if not found.
+func lastIndexOutsideQuotes(s, sep []byte) int {
+	last := -1
+
+	for i := 0; i < len(s); i++ {
+		if s[i] == bQuote {
+			end := findClosingQuote(s[i+1:])
+			if end != -1 {
+				i += end + 1
+			}
+
+			continue
+		}
+
+		if bytes.HasPrefix(s[i:], sep) {
+			last = i
+		}
+	}
+
+	return last
+}
 
 func ValueExtractorFromString(text string) (*ValueExtractor, error) {
 	return ValueExtractorFromBytes([]byte(text))
@@ -37,9 +121,10 @@ func ValueExtractorFromString(text string) (*ValueExtractor, error) {
 func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 	var ve ValueExtractor
 
-	// Find the split point between selectors and value spec
-	dataIdx := bytes.LastIndex(text, dataPrefix)
-	attrIdx := bytes.LastIndex(text, attrPrefix)
+	// Find the split point between selectors and value spec, ignoring
+	// occurrences inside single-quoted attribute values.
+	dataIdx := lastIndexOutsideQuotes(text, dataPrefix)
+	attrIdx := lastIndexOutsideQuotes(text, attrPrefix)
 
 	var (
 		valueSpecInner []byte
@@ -98,7 +183,14 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 		}}
 	}
 
-	selector, childSelector, _ := bytes.Cut(selector, bHash)
+	// Split parent and child selectors on '#', skipping '#' inside
+	// single-quoted attribute values.
+	var childSelector []byte
+
+	if hashIdx := indexByteOutsideQuotes(selector, '#'); hashIdx != -1 {
+		childSelector = selector[hashIdx+1:]
+		selector = selector[:hashIdx]
+	}
 
 	selectors, err := parseSelectors(selector)
 	if err != nil {
@@ -666,8 +758,9 @@ func parseAttributes(selector *BlockSelector, attrsStr []byte) error {
 			return fmt.Errorf("attribute value must be quoted: %q", valPart)
 		}
 
-		// Find the closing quote, starting after the opening one.
-		endQuoteIndex := bytes.IndexByte(valPart[1:], quote)
+		// Find the closing quote, starting after the opening one,
+		// skipping escaped quotes (\').
+		endQuoteIndex := findClosingQuote(valPart[1:])
 		if endQuoteIndex == -1 {
 			return fmt.Errorf("unterminated quoted value in: %q", valPart)
 		}
@@ -676,7 +769,7 @@ func parseAttributes(selector *BlockSelector, attrsStr []byte) error {
 		// absolute index in valPart.
 		endQuoteIndex++
 
-		value := valPart[1:endQuoteIndex]
+		value := unescapeQuoted(valPart[1:endQuoteIndex])
 
 		// Assign the value to the selector.
 		if err := setSelectorField(selector, string(key), string(value)); err != nil {
@@ -754,7 +847,7 @@ func parseDataFilter(b []byte) (DataFilter, int, error) {
 			"data filter value must be quoted: %q", token)
 	}
 
-	endQuoteIndex := bytes.IndexByte(valPart[1:], '\'')
+	endQuoteIndex := findClosingQuote(valPart[1:])
 	if endQuoteIndex == -1 {
 		return DataFilter{}, 0, fmt.Errorf(
 			"unterminated quoted value in data filter: %q", b)
@@ -763,7 +856,7 @@ func parseDataFilter(b []byte) (DataFilter, int, error) {
 	// endQuoteIndex is relative to valPart[1:].
 	endQuoteIndex++
 
-	value := valPart[1:endQuoteIndex]
+	value := unescapeQuoted(valPart[1:endQuoteIndex])
 	consumed := valStart + endQuoteIndex + 1
 
 	return DataFilter{
@@ -797,7 +890,7 @@ func splitSelectors(s []byte) [][]byte {
 		case '\'':
 			// Skip quoted values so that periods inside quotes are
 			// not treated as separators.
-			end := bytes.IndexByte(s[i+1:], '\'')
+			end := findClosingQuote(s[i+1:])
 			if end != -1 {
 				i += end + 1
 			}

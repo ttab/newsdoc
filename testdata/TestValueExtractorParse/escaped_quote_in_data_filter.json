@@ -1,0 +1,21 @@
+{
+  "Selectors": [
+    {
+      "DataFilters": [
+        {
+          "Key": "tag",
+          "Mode": "exact",
+          "Value": "it's breaking"
+        }
+      ],
+      "Kind": "meta",
+      "Type": "core/event"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

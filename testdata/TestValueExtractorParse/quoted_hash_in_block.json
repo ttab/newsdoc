@@ -1,0 +1,18 @@
+{
+  "Selectors": [
+    {
+      "Kind": "meta",
+      "Type": "core/tagged#v2"
+    },
+    {
+      "Kind": "links",
+      "Rel": "item"
+    }
+  ],
+  "ValueKind": "block",
+  "Values": [
+    {
+      "Name": "items"
+    }
+  ]
+}

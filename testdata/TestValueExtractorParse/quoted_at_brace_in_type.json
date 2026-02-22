@@ -1,0 +1,14 @@
+{
+  "Selectors": [
+    {
+      "Kind": "meta",
+      "Type": "x@{y}"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "Selectors": [
+    {
+      "Kind": "meta",
+      "Type": ".data{tricky}"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

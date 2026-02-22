@@ -1,0 +1,18 @@
+{
+  "Selectors": [
+    {
+      "Kind": "meta",
+      "Type": "core/section"
+    },
+    {
+      "Kind": "links",
+      "Rel": "item@2"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "Selectors": [
+    {
+      "Kind": "meta",
+      "Type": "core/thing#v1"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

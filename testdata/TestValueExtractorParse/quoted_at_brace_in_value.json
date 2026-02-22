@@ -1,0 +1,14 @@
+{
+  "Selectors": [
+    {
+      "Kind": "content",
+      "Value": "@{placeholder}"
+    }
+  ],
+  "ValueKind": "attributes",
+  "Values": [
+    {
+      "Name": "title"
+    }
+  ]
+}

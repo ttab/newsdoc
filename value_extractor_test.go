@@ -27,6 +27,18 @@ func TestValueExtractorParse(t *testing.T) {
 		"data_non_empty":   ".meta(type='core/event' data.date??).data{date}",
 		"data_multi_mixed": ".meta(type='core/event' data.date?? data.status='confirmed').data{date}",
 		"child_selector":   "assignment=.meta(type='core/assignment')#.links(rel='deliverable' uuid='abc'):label",
+
+		// Special characters and sequences inside quoted strings.
+		"quoted_hash_in_type":          ".meta(type='core/thing#v1').data{date}",
+		"quoted_hash_in_block":         "items=.meta(type='core/tagged#v2').links(rel='item')",
+		"quoted_at_in_rel":             ".meta(type='core/section').links(rel='item@2').data{date}",
+		"quoted_at_brace_in_value":     ".content(value='@{placeholder}')@{title}",
+		"quoted_at_brace_in_type":      ".meta(type='x@{y}').data{date}",
+		"quoted_dotdata_in_type":       ".meta(type='test.data.value').data{date}",
+		"quoted_dotdata_brace_type":    ".meta(type='.data{tricky}').data{date}",
+		"quoted_dotdata_brace_filt":    ".meta(type='core/event' data.format='.data{x}').data{date}",
+		"quoted_hash_in_data_filter":   ".meta(type='core/event' data.tag='news#breaking').data{date}",
+		"escaped_quote_in_data_filter": ".meta(type='core/event' data.tag='it\\'s breaking').data{date}",
 	}
 
 	for name, str := range cases {
