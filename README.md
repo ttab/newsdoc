@@ -242,16 +242,16 @@ assignment=.meta(type='core/assignment')#.links(rel='deliverable' data.status='a
 
 ### Extracting data values
 
-Use `.data{}` to extract values from the matched blocks' data maps:
+Use `.data{}` to extract values from the matched blocks' data maps. Values are space-separated (commas are also accepted):
 
 ```
-.meta(type='core/planning-item').data{start_date, end_date}
+.meta(type='core/planning-item').data{start_date end_date}
 ```
 
 Each matched block must have all specified data keys for the extraction to succeed. Append `?` to make a value optional:
 
 ```
-.meta(type='core/planning-item').data{start_date, date_tz?}
+.meta(type='core/planning-item').data{start_date date_tz?}
 ```
 
 ### Extracting block attributes
@@ -260,21 +260,31 @@ Use `@{}` to extract block attribute values:
 
 ```
 .content(type='core/text')@{value}
-.links(rel='author')@{uuid, title}
+.links(rel='author')@{uuid title}
 ```
 
 When no selectors are provided, `@{}` extracts document-level attributes (`uuid`, `type`, `uri`, `url`, `title`, `language`):
 
 ```
-@{title, language}
+@{title language}
 ```
+
+### Combining attribute and data extraction
+
+An expression can combine `@{}` and `.data{}` to extract both block attributes and data values from the same matched blocks:
+
+```
+.meta(type='core/assignment')@{title}.data{start_date date_tz}
+```
+
+This extracts the `title` attribute and the `start_date` and `date_tz` data values from each matched block. The same all-or-nothing semantics apply: if any required value is missing, the block is skipped.
 
 ### Annotations and roles
 
 Values can be annotated with a type hint using `:`, and given a role using `=` as a prefix:
 
 ```
-.meta(type='core/event').data{date:date, tz=date_timezone?}
+.meta(type='core/event').data{date:date tz=date_timezone?}
 ```
 
 Here `date` has the annotation `date`, and `date_timezone` is extracted with the role `tz`. Annotations and roles are passed through in the extracted results and can be used by the caller to interpret the values.

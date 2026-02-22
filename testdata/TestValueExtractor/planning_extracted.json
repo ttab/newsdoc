@@ -59,5 +59,21 @@
         "Name": "assignment"
       }
     }
+  ],
+  [
+    {
+      "date_tz": {
+        "Name": "date_tz",
+        "Value": "Europe/Stockholm"
+      },
+      "start_date": {
+        "Name": "start_date",
+        "Value": "2024-09-09"
+      },
+      "title": {
+        "Name": "title",
+        "Value": "start prel 13.45: minst 1|800 tecken under eftermiddagen"
+      }
+    }
   ]
 ]

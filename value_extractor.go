@@ -133,7 +133,38 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 
 	switch {
 	case dataIdx != -1 && attrIdx != -1:
-		return nil, fmt.Errorf("the expression cannot have both a .data{} and @{} value specifier")
+		ve.ValueKind = ValueKindCombined
+		selector = text[:min(attrIdx, dataIdx)]
+
+		if len(selector) == 0 {
+			return nil, fmt.Errorf(
+				"combined extraction requires at least one selector")
+		}
+
+		attrInner, dataInner, err := parseCombinedSpecs(text, attrIdx, dataIdx)
+		if err != nil {
+			return nil, err
+		}
+
+		attrValues, err := parseValues(attrInner)
+		if err != nil {
+			return nil, fmt.Errorf("attribute values: %w", err)
+		}
+
+		for i := range attrValues {
+			attrValues[i].Source = ValueSourceAttributes
+		}
+
+		dataValues, err := parseValues(dataInner)
+		if err != nil {
+			return nil, fmt.Errorf("data values: %w", err)
+		}
+
+		for i := range dataValues {
+			dataValues[i].Source = ValueSourceData
+		}
+
+		ve.Values = slices.Concat(attrValues, dataValues)
 	case dataIdx != -1:
 		ve.ValueKind = ValueKindData
 		selector = text[:dataIdx]
@@ -218,6 +249,11 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 				"block extraction requires at least one selector")
 		}
 
+		return &ve, nil
+	}
+
+	// Combined expressions have their values parsed in the switch above.
+	if ve.ValueKind == ValueKindCombined {
 		return &ve, nil
 	}
 
@@ -324,6 +360,19 @@ func (ve *ValueExtractor) Collect(doc Document) []ExtractedItems {
 		return extracts
 	}
 
+	if ve.ValueKind == ValueKindCombined {
+		for b := range matches {
+			e := extractCombinedItems(b, ve.Values)
+			if len(e) == 0 {
+				continue
+			}
+
+			extracts = append(extracts, e)
+		}
+
+		return extracts
+	}
+
 	var accessor func(b Block, name string) string
 
 	switch ve.ValueKind {
@@ -333,6 +382,8 @@ func (ve *ValueExtractor) Collect(doc Document) []ExtractedItems {
 		accessor = getBlockData
 	case ValueKindBlock:
 		panic("ValueKindBlock should have been handled above")
+	case ValueKindCombined:
+		panic("ValueKindCombined should have been handled above")
 	}
 
 	for b := range matches {
@@ -431,6 +482,37 @@ func extractItems(
 	return e
 }
 
+func extractCombinedItems(b Block, spec []ValueSpec) ExtractedItems {
+	e := make(ExtractedItems)
+
+	for _, v := range spec {
+		var value string
+
+		switch v.Source {
+		case ValueSourceAttributes:
+			value = getBlockAttribute(b, v.Name)
+		case ValueSourceData:
+			value = getBlockData(b, v.Name)
+		}
+
+		switch {
+		case value == "" && !v.Optional:
+			return nil
+		case value == "" && v.Optional:
+			continue
+		}
+
+		e[v.Name] = ExtractedValue{
+			Name:       v.Name,
+			Value:      value,
+			Annotation: v.Annotation,
+			Role:       v.Role,
+		}
+	}
+
+	return e
+}
+
 func getBlockData(b Block, name string) string {
 	return b.Data.Get(name, "")
 }
@@ -485,9 +567,10 @@ func getBlockAttribute(block Block, name string) string {
 
 type ValueSpec struct {
 	Name       string
-	Optional   bool   `json:",omitempty"`
-	Annotation string `json:",omitempty"`
-	Role       string `json:",omitempty"`
+	Source     ValueSource `json:",omitempty"`
+	Optional   bool        `json:",omitempty"`
+	Annotation string      `json:",omitempty"`
+	Role       string      `json:",omitempty"`
 }
 
 type ExtractedItems map[string]ExtractedValue
@@ -508,12 +591,29 @@ const (
 	BlockKindContent BlockKind = "content"
 )
 
+// ValueKind describes what kind of values a ValueExtractor produces.
 type ValueKind string
 
 const (
+	// ValueKindAttributes extracts block attribute values using @{}.
 	ValueKindAttributes ValueKind = "attributes"
-	ValueKindData       ValueKind = "data"
-	ValueKindBlock      ValueKind = "block"
+	// ValueKindData extracts block data map values using .data{}.
+	ValueKindData ValueKind = "data"
+	// ValueKindBlock extracts matched blocks themselves (name=.selectors).
+	ValueKindBlock ValueKind = "block"
+	// ValueKindCombined extracts both attribute and data values from matched
+	// blocks using @{}.data{} in a single expression.
+	ValueKindCombined ValueKind = "combined"
+)
+
+// ValueSource identifies whether a value spec in a combined extraction targets
+// block attributes or block data. It is only populated for ValueKindCombined
+// expressions.
+type ValueSource string
+
+const (
+	ValueSourceData       ValueSource = "data"
+	ValueSourceAttributes ValueSource = "attributes"
 )
 
 // DataFilterMode describes the comparison mode for a data filter.
@@ -1161,6 +1261,37 @@ func parseSelectors(s []byte) ([]BlockSelector, error) {
 	return selectors, nil
 }
 
+// parseCombinedSpecs extracts the inner byte slices for the @{} and .data{}
+// specifiers from a combined expression.
+func parseCombinedSpecs(text []byte, attrIdx, dataIdx int) (attrInner, dataInner []byte, err error) {
+	extractInner := func(start int, prefix []byte) ([]byte, error) {
+		inner, ok := bytes.CutPrefix(text[start:], prefix)
+		if !ok {
+			return nil, fmt.Errorf("expected %q at position %d", prefix, start)
+		}
+
+		closeIdx := bytes.IndexByte(inner, '}')
+		if closeIdx == -1 {
+			return nil, fmt.Errorf(
+				"invalid format: expected '}' at end of value specifier")
+		}
+
+		return inner[:closeIdx], nil
+	}
+
+	attrInner, err = extractInner(attrIdx, attrPrefix)
+	if err != nil {
+		return nil, nil, fmt.Errorf("attribute spec: %w", err)
+	}
+
+	dataInner, err = extractInner(dataIdx, dataPrefix)
+	if err != nil {
+		return nil, nil, fmt.Errorf("data spec: %w", err)
+	}
+
+	return attrInner, dataInner, nil
+}
+
 // parseValues parses the value spec string, e.g.:
 //
 //	"date:date, tz=date_timezone"
@@ -1171,15 +1302,12 @@ func parseValues(s []byte) ([]ValueSpec, error) {
 		return nil, errors.New("no values were specified")
 	}
 
-	parts := bytes.Split(s, bComma)
+	// Normalize commas to spaces so that both "a, b" and "a b" work.
+	s = bytes.ReplaceAll(s, bComma, []byte(" "))
+	parts := bytes.Fields(s)
 	values := make([]ValueSpec, 0, len(parts))
 
 	for _, part := range parts {
-		part = bytes.TrimSpace(part)
-		if len(part) == 0 {
-			continue
-		}
-
 		var spec ValueSpec
 
 		part, optional := bytes.CutSuffix(part, bQMark)

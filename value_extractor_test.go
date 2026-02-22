@@ -48,6 +48,9 @@ func TestValueExtractorParse(t *testing.T) {
 		"or_data_filter": ".meta(data.status='draft' or data.status='review').data{date}",
 		"nested_groups":  ".meta((type='a' (value='x' or value='y')) or (type='b' value='z')).data{date}",
 		"or_data_exists": ".meta(type='core/event' (data.date?? or data.start??)).data{date}",
+
+		// Combined attribute and data extraction.
+		"combined_attr_data": ".meta(type='core/assignment')@{title}.data{start_date date_tz}",
 	}
 
 	for name, str := range cases {
@@ -121,6 +124,8 @@ func TestValueExtractor(t *testing.T) {
 				"block=.meta(type='core/assignment').links(rel='deliverable' data.nonesuch='value')",
 				// Child selector: get all assignment that reference a given deliverable.
 				"assignment=.meta(type='core/assignment')#.links(rel='deliverable' uuid='4f13347f-04b3-4f22-a992-9316d824b81f')",
+				// Extract both data and attributes.
+				".meta(type='core/assignment')@{title}.data{start_date date_tz}",
 			},
 			Document: "planning.json",
 		},

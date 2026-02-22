@@ -1,0 +1,26 @@
+{
+  "Selectors": [
+    {
+      "Filter": {
+        "Attr": "type",
+        "Value": "core/assignment"
+      },
+      "Kind": "meta"
+    }
+  ],
+  "ValueKind": "combined",
+  "Values": [
+    {
+      "Name": "title",
+      "Source": "attributes"
+    },
+    {
+      "Name": "start_date",
+      "Source": "data"
+    },
+    {
+      "Name": "date_tz",
+      "Source": "data"
+    }
+  ]
+}
