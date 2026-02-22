@@ -18,7 +18,6 @@ type ValueExtractor struct {
 var (
 	dataPrefix  = []byte(".data{")
 	attrPrefix  = []byte("@{")
-	valuesEnd   = []byte("}")
 	bPeriod     = []byte(".")
 	bStartParen = []byte("(")
 	bEndParen   = []byte(")")
@@ -128,7 +127,10 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 
 	var (
 		valueSpecInner []byte
-		selector       []byte
+		// valueSpecSuffix holds any text after the closing '}' of the
+		// value spec. This may contain a '#' child selector.
+		valueSpecSuffix []byte
+		selector        []byte
 	)
 
 	switch {
@@ -141,10 +143,14 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 				"combined extraction requires at least one selector")
 		}
 
-		attrInner, dataInner, err := parseCombinedSpecs(text, attrIdx, dataIdx)
+		attrInner, dataInner, suffix, err := parseCombinedSpecs(
+			text, attrIdx, dataIdx,
+		)
 		if err != nil {
 			return nil, err
 		}
+
+		valueSpecSuffix = suffix
 
 		attrValues, err := parseValues(attrInner)
 		if err != nil {
@@ -168,7 +174,15 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 	case dataIdx != -1:
 		ve.ValueKind = ValueKindData
 		selector = text[:dataIdx]
-		valueSpecInner, _ = bytes.CutPrefix(text[dataIdx:], dataPrefix)
+
+		raw, _ := bytes.CutPrefix(text[dataIdx:], dataPrefix)
+
+		if !bytes.ContainsRune(raw, '}') {
+			return nil, fmt.Errorf(
+				"invalid format: expected '}' in value specifier")
+		}
+
+		valueSpecInner, valueSpecSuffix = splitValueSpec(raw)
 
 		if dataIdx == 0 {
 			return nil, fmt.Errorf("documents do not have data blocks")
@@ -176,7 +190,15 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 	case attrIdx != -1:
 		ve.ValueKind = ValueKindAttributes
 		selector = text[:attrIdx]
-		valueSpecInner, _ = bytes.CutPrefix(text[attrIdx:], attrPrefix)
+
+		raw, _ := bytes.CutPrefix(text[attrIdx:], attrPrefix)
+
+		if !bytes.ContainsRune(raw, '}') {
+			return nil, fmt.Errorf(
+				"invalid format: expected '}' in value specifier")
+		}
+
+		valueSpecInner, valueSpecSuffix = splitValueSpec(raw)
 	default:
 		ve.ValueKind = ValueKindBlock
 
@@ -215,12 +237,17 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 	}
 
 	// Split parent and child selectors on '#', skipping '#' inside
-	// single-quoted attribute values.
+	// single-quoted attribute values. The '#' can appear either in the
+	// selector chain or after the value spec's closing '}'.
 	var childSelector []byte
 
 	if hashIdx := indexByteOutsideQuotes(selector, '#'); hashIdx != -1 {
 		childSelector = selector[hashIdx+1:]
 		selector = selector[:hashIdx]
+	}
+
+	if hashIdx := indexByteOutsideQuotes(valueSpecSuffix, '#'); hashIdx != -1 {
+		childSelector = valueSpecSuffix[hashIdx+1:]
 	}
 
 	selectors, err := parseSelectors(selector)
@@ -256,12 +283,6 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 	if ve.ValueKind == ValueKindCombined {
 		return &ve, nil
 	}
-
-	if !bytes.HasSuffix(valueSpecInner, valuesEnd) {
-		return nil, fmt.Errorf("invalid format: expected '}' at end of value specifier")
-	}
-
-	valueSpecInner = valueSpecInner[:len(valueSpecInner)-1]
 
 	values, err := parseValues(valueSpecInner)
 	if err != nil {
@@ -1261,35 +1282,58 @@ func parseSelectors(s []byte) ([]BlockSelector, error) {
 	return selectors, nil
 }
 
+// splitValueSpec splits a raw value spec (everything after the opening '{')
+// into the inner content and any suffix after the closing '}'.
+func splitValueSpec(raw []byte) (inner, suffix []byte) {
+	closeIdx := bytes.IndexByte(raw, '}')
+	if closeIdx == -1 {
+		return raw, nil
+	}
+
+	return raw[:closeIdx], raw[closeIdx+1:]
+}
+
 // parseCombinedSpecs extracts the inner byte slices for the @{} and .data{}
-// specifiers from a combined expression.
-func parseCombinedSpecs(text []byte, attrIdx, dataIdx int) (attrInner, dataInner []byte, err error) {
-	extractInner := func(start int, prefix []byte) ([]byte, error) {
+// specifiers from a combined expression. It also returns any trailing suffix
+// after the last spec's closing '}' (which may contain a child selector).
+func parseCombinedSpecs(
+	text []byte, attrIdx, dataIdx int,
+) (attrInner, dataInner, suffix []byte, err error) {
+	extractInner := func(start int, prefix []byte) ([]byte, []byte, error) {
 		inner, ok := bytes.CutPrefix(text[start:], prefix)
 		if !ok {
-			return nil, fmt.Errorf("expected %q at position %d", prefix, start)
+			return nil, nil, fmt.Errorf(
+				"expected %q at position %d", prefix, start)
 		}
 
-		closeIdx := bytes.IndexByte(inner, '}')
-		if closeIdx == -1 {
-			return nil, fmt.Errorf(
-				"invalid format: expected '}' at end of value specifier")
+		values, rest := splitValueSpec(inner)
+		if len(values) == len(inner) {
+			return nil, nil, fmt.Errorf(
+				"invalid format: expected '}' in value specifier")
 		}
 
-		return inner[:closeIdx], nil
+		return values, rest, nil
 	}
 
-	attrInner, err = extractInner(attrIdx, attrPrefix)
+	var attrSuffix, dataSuffix []byte
+
+	attrInner, attrSuffix, err = extractInner(attrIdx, attrPrefix)
 	if err != nil {
-		return nil, nil, fmt.Errorf("attribute spec: %w", err)
+		return nil, nil, nil, fmt.Errorf("attribute spec: %w", err)
 	}
 
-	dataInner, err = extractInner(dataIdx, dataPrefix)
+	dataInner, dataSuffix, err = extractInner(dataIdx, dataPrefix)
 	if err != nil {
-		return nil, nil, fmt.Errorf("data spec: %w", err)
+		return nil, nil, nil, fmt.Errorf("data spec: %w", err)
 	}
 
-	return attrInner, dataInner, nil
+	// The suffix comes from whichever spec appears later in the text.
+	suffix = dataSuffix
+	if attrIdx > dataIdx {
+		suffix = attrSuffix
+	}
+
+	return attrInner, dataInner, suffix, nil
 }
 
 // parseValues parses the value spec string, e.g.:

@@ -124,6 +124,8 @@ func TestValueExtractor(t *testing.T) {
 				"block=.meta(type='core/assignment').links(rel='deliverable' data.nonesuch='value')",
 				// Child selector: get all assignment that reference a given deliverable.
 				"assignment=.meta(type='core/assignment')#.links(rel='deliverable' uuid='4f13347f-04b3-4f22-a992-9316d824b81f')",
+				// Child selector with value.
+				".meta(type='core/assignment')@{id}#.links(rel='deliverable' uuid='4f13347f-04b3-4f22-a992-9316d824b81f')",
 				// Extract both data and attributes.
 				".meta(type='core/assignment')@{title}.data{start_date date_tz}",
 			},
