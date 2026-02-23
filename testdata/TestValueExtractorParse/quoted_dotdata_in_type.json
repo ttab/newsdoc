@@ -1,0 +1,17 @@
+{
+  "Selectors": [
+    {
+      "Filter": {
+        "Attr": "type",
+        "Value": "test.data.value"
+      },
+      "Kind": "meta"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

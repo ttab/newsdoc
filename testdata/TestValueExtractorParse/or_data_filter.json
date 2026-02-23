@@ -1,0 +1,32 @@
+{
+  "Selectors": [
+    {
+      "Filter": {
+        "Children": [
+          {
+            "Data": {
+              "Key": "status",
+              "Mode": "exact",
+              "Value": "draft"
+            }
+          },
+          {
+            "Data": {
+              "Key": "status",
+              "Mode": "exact",
+              "Value": "review"
+            }
+          }
+        ],
+        "Op": "or"
+      },
+      "Kind": "meta"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

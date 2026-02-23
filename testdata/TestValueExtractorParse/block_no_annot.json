@@ -3,7 +3,7 @@
     {
       "Filter": {
         "Attr": "type",
-        "Value": "core/collection"
+        "Value": "example/collection"
       },
       "Kind": "meta"
     },
@@ -15,16 +15,10 @@
       "Kind": "links"
     }
   ],
-  "ValueKind": "data",
+  "ValueKind": "block",
   "Values": [
     {
-      "Annotation": "date",
-      "Name": "date"
-    },
-    {
-      "Name": "date_timezone",
-      "Optional": true,
-      "Role": "tz"
+      "Name": "items"
     }
   ]
 }

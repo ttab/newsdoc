@@ -1,0 +1,53 @@
+{
+  "Selectors": [
+    {
+      "Filter": {
+        "Children": [
+          {
+            "Children": [
+              {
+                "Attr": "type",
+                "Value": "a"
+              },
+              {
+                "Children": [
+                  {
+                    "Attr": "value",
+                    "Value": "x"
+                  },
+                  {
+                    "Attr": "value",
+                    "Value": "y"
+                  }
+                ],
+                "Op": "or"
+              }
+            ],
+            "Op": "and"
+          },
+          {
+            "Children": [
+              {
+                "Attr": "type",
+                "Value": "b"
+              },
+              {
+                "Attr": "value",
+                "Value": "z"
+              }
+            ],
+            "Op": "and"
+          }
+        ],
+        "Op": "or"
+      },
+      "Kind": "meta"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

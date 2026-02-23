@@ -2,8 +2,8 @@
   "Selectors": [
     {
       "Filter": {
-        "Attr": "type",
-        "Value": "example/assumed-static-tz"
+        "Attr": "value",
+        "Value": "@{placeholder}"
       },
       "Kind": "content"
     }
@@ -11,8 +11,7 @@
   "ValueKind": "attributes",
   "Values": [
     {
-      "Annotation": "date",
-      "Name": "value"
+      "Name": "title"
     }
   ]
 }

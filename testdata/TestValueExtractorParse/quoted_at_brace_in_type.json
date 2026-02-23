@@ -1,0 +1,17 @@
+{
+  "Selectors": [
+    {
+      "Filter": {
+        "Attr": "type",
+        "Value": "x@{y}"
+      },
+      "Kind": "meta"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

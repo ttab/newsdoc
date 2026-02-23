@@ -1,0 +1,35 @@
+{
+  "Selectors": [
+    {
+      "Filter": {
+        "Children": [
+          {
+            "Attr": "type",
+            "Value": "core/thing"
+          },
+          {
+            "Children": [
+              {
+                "Attr": "value",
+                "Value": "a"
+              },
+              {
+                "Attr": "value",
+                "Value": "b"
+              }
+            ],
+            "Op": "or"
+          }
+        ],
+        "Op": "and"
+      },
+      "Kind": "meta"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

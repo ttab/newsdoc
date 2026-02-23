@@ -4,23 +4,25 @@
       "Filter": {
         "Children": [
           {
-            "Attr": "rel",
-            "Value": "point-in-time"
+            "Attr": "type",
+            "Value": "core/event"
           },
           {
-            "Attr": "type",
-            "Value": "example/pit"
+            "Data": {
+              "Key": "date",
+              "Mode": "non-empty"
+            }
           }
         ],
         "Op": "and"
       },
-      "Kind": "links"
+      "Kind": "meta"
     }
   ],
   "ValueKind": "data",
   "Values": [
     {
-      "Name": "timestamp"
+      "Name": "date"
     }
   ]
 }

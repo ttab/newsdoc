@@ -1,0 +1,17 @@
+{
+  "Selectors": [
+    {
+      "Filter": {
+        "Attr": "type",
+        "Value": ".data{tricky}"
+      },
+      "Kind": "meta"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "Selectors": [
+    {
+      "Filter": {
+        "Children": [
+          {
+            "Attr": "type",
+            "Value": "core/event"
+          },
+          {
+            "Data": {
+              "Key": "format",
+              "Mode": "exact",
+              "Value": ".data{x}"
+            }
+          }
+        ],
+        "Op": "and"
+      },
+      "Kind": "meta"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

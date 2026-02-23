@@ -4,23 +4,23 @@
       "Filter": {
         "Children": [
           {
-            "Attr": "rel",
-            "Value": "point-in-time"
+            "Attr": "value",
+            "Value": "text"
           },
           {
-            "Attr": "type",
-            "Value": "example/pit"
+            "Attr": "value",
+            "Value": "picture"
           }
         ],
-        "Op": "and"
+        "Op": "or"
       },
-      "Kind": "links"
+      "Kind": "meta"
     }
   ],
   "ValueKind": "data",
   "Values": [
     {
-      "Name": "timestamp"
+      "Name": "date"
     }
   ]
 }

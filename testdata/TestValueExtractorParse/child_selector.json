@@ -1,0 +1,36 @@
+{
+  "ChildSelectors": [
+    {
+      "Filter": {
+        "Children": [
+          {
+            "Attr": "rel",
+            "Value": "deliverable"
+          },
+          {
+            "Attr": "uuid",
+            "Value": "abc"
+          }
+        ],
+        "Op": "and"
+      },
+      "Kind": "links"
+    }
+  ],
+  "Selectors": [
+    {
+      "Filter": {
+        "Attr": "type",
+        "Value": "core/assignment"
+      },
+      "Kind": "meta"
+    }
+  ],
+  "ValueKind": "block",
+  "Values": [
+    {
+      "Annotation": "label",
+      "Name": "assignment"
+    }
+  ]
+}

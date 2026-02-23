@@ -1,0 +1,30 @@
+{
+  "Selectors": [
+    {
+      "Filter": {
+        "Children": [
+          {
+            "Attr": "value",
+            "Value": "text"
+          },
+          {
+            "Attr": "value",
+            "Value": "picture"
+          },
+          {
+            "Attr": "value",
+            "Value": "video"
+          }
+        ],
+        "Op": "or"
+      },
+      "Kind": "meta"
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "date"
+    }
+  ]
+}

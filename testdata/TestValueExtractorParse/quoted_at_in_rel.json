@@ -3,14 +3,14 @@
     {
       "Filter": {
         "Attr": "type",
-        "Value": "core/collection"
+        "Value": "core/section"
       },
       "Kind": "meta"
     },
     {
       "Filter": {
         "Attr": "rel",
-        "Value": "item"
+        "Value": "item@2"
       },
       "Kind": "links"
     }
@@ -18,13 +18,7 @@
   "ValueKind": "data",
   "Values": [
     {
-      "Annotation": "date",
       "Name": "date"
-    },
-    {
-      "Name": "date_timezone",
-      "Optional": true,
-      "Role": "tz"
     }
   ]
 }

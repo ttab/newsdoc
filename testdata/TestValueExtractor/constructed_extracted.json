@@ -56,5 +56,75 @@
         "Value": "2025-10-17T08:34:35+02:00"
       }
     }
+  ],
+  [
+    {
+      "pointy": {
+        "Annotation": "interesting",
+        "Block": {
+          "data": {
+            "timestamp": "2025-10-17T08:34:35+02:00"
+          },
+          "rel": "point-in-time",
+          "type": "example/pit"
+        },
+        "Name": "pointy"
+      }
+    }
+  ],
+  [
+    {
+      "unpointy": {
+        "Block": {
+          "data": {
+            "timestamp": "2025-10-17T08:34:35+02:00"
+          },
+          "rel": "point-in-time",
+          "type": "example/pit"
+        },
+        "Name": "unpointy"
+      }
+    }
+  ],
+  [
+    {
+      "date": {
+        "Annotation": "date",
+        "Name": "date",
+        "Value": "2025-10-19"
+      }
+    }
+  ],
+  [
+    {
+      "date": {
+        "Annotation": "date",
+        "Name": "date",
+        "Value": "2025-10-19"
+      }
+    },
+    {
+      "date": {
+        "Annotation": "date",
+        "Name": "date",
+        "Value": "2025-10-21"
+      }
+    }
+  ],
+  [
+    {
+      "date": {
+        "Annotation": "date",
+        "Name": "date",
+        "Value": "2025-10-19"
+      }
+    },
+    {
+      "date": {
+        "Annotation": "date",
+        "Name": "date",
+        "Value": "2025-10-21"
+      }
+    }
   ]
 ]
