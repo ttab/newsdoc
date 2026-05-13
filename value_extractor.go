@@ -317,8 +317,6 @@ func (ve *ValueExtractor) Collect(doc Document) []ExtractedItems {
 		blocks = doc.Links
 	case BlockKindMeta:
 		blocks = doc.Meta
-	default:
-		panic(fmt.Sprintf("unexpected newsdoc.BlockKind: %#v", root.Kind))
 	}
 
 	matches := root.Iterator(slices.Values(blocks))
@@ -336,8 +334,6 @@ func (ve *ValueExtractor) Collect(doc Document) []ExtractedItems {
 				srcBlocks = append(srcBlocks, slices.Values(b.Links))
 			case BlockKindMeta:
 				srcBlocks = append(srcBlocks, slices.Values(b.Meta))
-			default:
-				panic(fmt.Sprintf("unexpected newsdoc.BlockKind: %#v", root.Kind))
 			}
 		}
 
@@ -401,10 +397,8 @@ func (ve *ValueExtractor) Collect(doc Document) []ExtractedItems {
 		accessor = getBlockAttribute
 	case ValueKindData:
 		accessor = getBlockData
-	case ValueKindBlock:
-		panic("ValueKindBlock should have been handled above")
-	case ValueKindCombined:
-		panic("ValueKindCombined should have been handled above")
+	case ValueKindBlock, ValueKindCombined:
+		// Handled by the early returns above.
 	}
 
 	for b := range matches {
@@ -581,9 +575,9 @@ func getBlockAttribute(block Block, name string) string {
 		return block.Role
 	case blockAttrSensitivity:
 		return block.Sensitivity
+	default:
+		return ""
 	}
-
-	return ""
 }
 
 type ValueSpec struct {
@@ -668,9 +662,9 @@ func (df DataFilter) matches(b Block) bool {
 		return ok
 	case DataFilterNonEmpty:
 		return b.Data.Get(df.Key, "") != ""
+	default:
+		return false
 	}
-
-	return false
 }
 
 // FilterOp is the boolean operator for a filter node.
