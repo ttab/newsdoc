@@ -7,20 +7,22 @@
       },
       "Kind": "meta",
       "RequireChild": [
-        {
-          "Filter": {
-            "Attr": "type",
-            "Value": "b"
+        [
+          {
+            "Filter": {
+              "Attr": "type",
+              "Value": "b"
+            },
+            "Kind": "meta"
           },
-          "Kind": "meta"
-        },
-        {
-          "Filter": {
-            "Attr": "rel",
-            "Value": "c"
-          },
-          "Kind": "links"
-        }
+          {
+            "Filter": {
+              "Attr": "rel",
+              "Value": "c"
+            },
+            "Kind": "links"
+          }
+        ]
       ]
     }
   ],

@@ -15,6 +15,15 @@
             },
             "Kind": "links"
           }
+        ],
+        [
+          {
+            "Filter": {
+              "Attr": "type",
+              "Value": "c"
+            },
+            "Kind": "content"
+          }
         ]
       ]
     }

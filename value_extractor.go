@@ -9,10 +9,9 @@ import (
 )
 
 type ValueExtractor struct {
-	Selectors      []BlockSelector
-	ChildSelectors []BlockSelector `json:",omitempty"`
-	ValueKind      ValueKind
-	Values         []ValueSpec
+	Selectors []BlockSelector
+	ValueKind ValueKind
+	Values    []ValueSpec
 }
 
 var (
@@ -252,17 +251,16 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 		}}
 	}
 
-	// Terminal '#' may appear in the selector chain or after the value spec's
-	// '}'. Only the terminal form is allowed after '}'.
-	var childSelector []byte
+	// A terminal '#' may appear both in the selector chain and after the
+	// value spec's '}' (only the terminal form is allowed there). Each one is
+	// folded into a RequireChild chain on the last selector, exactly as if it
+	// were an inline '#(...)' attached to that selector. Collect them in order
+	// so neither gate is lost when both are present.
+	var terminalChildren [][]byte
 
 	if hashIdx := terminalHashIndex(selector); hashIdx != -1 {
-		childSelector = selector[hashIdx+1:]
+		terminalChildren = append(terminalChildren, selector[hashIdx+1:])
 		selector = selector[:hashIdx]
-
-		if len(bytes.TrimSpace(childSelector)) == 0 {
-			return nil, fmt.Errorf("empty child selector after '#'")
-		}
 	}
 
 	trimmedSuffix := bytes.TrimSpace(valueSpecSuffix)
@@ -277,10 +275,7 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 				"inline child selector '#(...)' is not allowed after a value spec")
 		}
 
-		childSelector = trimmedSuffix[1:]
-		if len(bytes.TrimSpace(childSelector)) == 0 {
-			return nil, fmt.Errorf("empty child selector after '#'")
-		}
+		terminalChildren = append(terminalChildren, trimmedSuffix[1:])
 	}
 
 	selectors, err := parseSelectors(selector)
@@ -290,17 +285,27 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 
 	ve.Selectors = selectors
 
-	if len(childSelector) > 0 {
-		childSelectors, err := parseSelectors(childSelector)
+	if len(terminalChildren) > 0 && len(ve.Selectors) == 0 {
+		return nil, fmt.Errorf(
+			"terminal '#' child selector requires a parent selector")
+	}
+
+	for _, childSelector := range terminalChildren {
+		if len(bytes.TrimSpace(childSelector)) == 0 {
+			return nil, fmt.Errorf("empty child selector after '#'")
+		}
+
+		childChain, err := parseSelectors(childSelector)
 		if err != nil {
 			return nil, fmt.Errorf("child selectors: %w", err)
 		}
 
-		if len(childSelectors) == 0 {
+		if len(childChain) == 0 {
 			return nil, fmt.Errorf("empty child selector after '#'")
 		}
 
-		ve.ChildSelectors = childSelectors
+		last := &ve.Selectors[len(ve.Selectors)-1]
+		last.RequireChild = append(last.RequireChild, childChain)
 	}
 
 	if ve.ValueKind == ValueKindBlock {
@@ -371,23 +376,6 @@ func (ve *ValueExtractor) Collect(doc Document) []ExtractedItems {
 		}
 
 		matches = sel.Iterator(concatIter(srcBlocks...))
-	}
-
-	if len(ve.ChildSelectors) > 0 {
-		childSelectors := ve.ChildSelectors
-		prev := matches
-
-		matches = func(yield func(Block) bool) {
-			for b := range prev {
-				if !hasMatchingChildren(b, childSelectors) {
-					continue
-				}
-
-				if !yield(b) {
-					return
-				}
-			}
-		}
 	}
 
 	var extracts []ExtractedItems
@@ -756,13 +744,14 @@ func (fn *FilterNode) Matches(b Block) bool {
 }
 
 // BlockSelector selects blocks by kind and optional attribute/data filters.
-// RequireChild (the inline '#(...)' form) gates the parent on a descendant
-// chain without yielding it, unlike ValueExtractor.ChildSelectors which
-// terminates the outer chain and yields the descendants.
+// RequireChild holds zero or more independent descendant chains that must ALL
+// match (logical AND); each chain is an existence check that yields the matched
+// block itself, never its descendants. The inline '#(...)' form and the
+// terminal '#' form each append one chain.
 type BlockSelector struct {
 	Kind         BlockKind
-	Filter       *FilterNode     `json:",omitempty"`
-	RequireChild []BlockSelector `json:",omitempty"`
+	Filter       *FilterNode       `json:",omitempty"`
+	RequireChild [][]BlockSelector `json:",omitempty"`
 }
 
 func (bs BlockSelector) Iterator(blocks iter.Seq[Block]) iter.Seq[Block] {
@@ -849,8 +838,10 @@ func (bs BlockSelector) Matches(b Block) bool {
 		return false
 	}
 
-	if len(bs.RequireChild) > 0 && !hasMatchingChildren(b, bs.RequireChild) {
-		return false
+	for _, chain := range bs.RequireChild {
+		if !hasMatchingChildren(b, chain) {
+			return false
+		}
 	}
 
 	return true
@@ -1291,7 +1282,8 @@ func parseSelectors(s []byte) ([]BlockSelector, error) {
 	return selectors, nil
 }
 
-// parseSelectorPart parses: kind [ '(' filter ')' ] [ '#(' childChain ')' ].
+// parseSelectorPart parses: kind [ '(' filter ')' ] { '#(' childChain ')' },
+// where any number of inline '#(...)' child gates may follow.
 func parseSelectorPart(part []byte) (BlockSelector, error) {
 	if len(part) == 0 {
 		return BlockSelector{}, fmt.Errorf(
@@ -1336,24 +1328,21 @@ func parseSelectorPart(part []byte) (BlockSelector, error) {
 		rest = rest[closeIdx+1:]
 	}
 
-	if len(rest) > 0 {
+	// Consume any number of inline '#(...)' child gates; each appends one
+	// descendant chain that the block must satisfy.
+	for len(rest) > 0 {
 		if rest[0] != '#' {
 			return BlockSelector{}, fmt.Errorf(
 				"unexpected trailing content in selector %q: %q", part, rest)
 		}
 
-		childSelectors, after, err := parseInlineChildSelector(rest)
+		childChain, after, err := parseInlineChildSelector(rest)
 		if err != nil {
 			return BlockSelector{}, fmt.Errorf("in selector %q: %w", part, err)
 		}
 
-		selector.RequireChild = childSelectors
+		selector.RequireChild = append(selector.RequireChild, childChain)
 		rest = after
-	}
-
-	if len(rest) > 0 {
-		return BlockSelector{}, fmt.Errorf(
-			"unexpected trailing content in selector %q: %q", part, rest)
 	}
 
 	return selector, nil

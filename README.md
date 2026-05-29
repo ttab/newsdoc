@@ -248,6 +248,14 @@ The terminal `#` form above consumes the rest of the expression as a child chain
 
 This matches `core/assignment` meta blocks that have a `deliverable` link, then navigates into each match's `tt/slugline` meta block and extracts the `value` attribute. The inline form can appear on any selector in the chain and supports the same nested filters as the terminal form.
 
+The terminal `#` is just shorthand for an inline `#(...)` on the last selector, so the two forms share one mechanism. A selector may carry several gates — any mix of inline `#(...)` clauses and a trailing terminal `#` — and the block matches only if *every* gate is satisfied:
+
+```
+.meta(type='core/assignment')#(.links(rel='deliverable'))#(.meta(type='tt/slugline'))
+```
+
+This matches assignments that have both a `deliverable` link and a `tt/slugline` meta block.
+
 ### Extracting data values
 
 Use `.data{}` to extract values from the matched blocks' data maps. Values are space-separated (commas are also accepted):

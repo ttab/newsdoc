@@ -3,6 +3,7 @@ package newsdoc_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ttab/newsdoc"
@@ -36,6 +37,8 @@ func TestValueExtractorParse(t *testing.T) {
 		"inline_child_end_of_chain":    ".meta(type='a')#(.links(rel='b')).data{x}",
 		"inline_child_multiple":        ".meta(type='a')#(.links(rel='b')).meta(type='c')#(.content(type='d')).data{x}",
 		"inline_child_with_terminal":   ".meta(type='a')#(.links(rel='b')).data{x}#.links(rel='d')",
+		"inline_child_two_gates":       ".meta(type='a')#(.links(rel='b'))#(.content(type='c')).data{x}",
+		"double_terminal_hash":         ".meta(type='a')#.links(rel='b').data{x}#.content(type='c')",
 		"inline_child_nested":          ".meta(type='a')#(.links(rel='b')#(.meta(type='c'))).data{x}",
 		"inline_child_multi_level":     ".meta(type='a')#(.meta(type='b').links(rel='c')).data{x}",
 		"inline_child_with_name_annot": "pick=.meta(type='a')#(.links(rel='b')):annot",
@@ -113,14 +116,6 @@ func TestValueExtractorParseErrors(t *testing.T) {
 		"empty_after_open_paren":      ".meta(type='a' ()).data{date}",
 		"attr_no_equals":              ".meta(type='a' noequals).data{date}",
 		"open_paren_eof":              "block=.meta(type='a' ()",
-		"child_selector_no_dot":       "block=.meta(type='a')#links(rel='b')",
-		"inline_empty_child":          ".meta(type='a')#().data{date}",
-		"inline_child_no_dot":         ".meta(type='a')#(links(rel='b')).data{date}",
-		"inline_child_unclosed":       ".meta(type='a')#(.links(rel='b').data{date}",
-		"trailing_hash_empty_chain":   "block=.meta(type='a')#",
-		"trailing_hash_empty_suffix":  ".meta(type='a').data{date}#",
-		"suffix_inline_child":         ".meta(type='a').data{date}#(.links(rel='b'))",
-		"suffix_unexpected_content":   ".meta(type='a').data{date}garbage",
 		"combined_empty_attr_values":  ".meta(type='a')@{}.data{date}",
 		"combined_empty_data_values":  ".meta(type='a')@{title}.data{}",
 		"combined_missing_close_attr": ".meta(type='a')@{title.data{date",
@@ -134,6 +129,70 @@ func TestValueExtractorParseErrors(t *testing.T) {
 			}
 
 			t.Logf("got expected error: %v", err)
+		})
+	}
+}
+
+// TestValueExtractorParseErrorMessages pins the specific error each
+// child-selector guard produces. Several of these guards can be reached by
+// overlapping inputs, so asserting only err != nil would not prove the
+// intended guard fired.
+func TestValueExtractorParseErrorMessages(t *testing.T) {
+	type errCase struct {
+		expr string
+		want string
+	}
+
+	cases := map[string]errCase{
+		"child_selector_no_dot": {
+			"block=.meta(type='a')#links(rel='b')",
+			"selector chain must start with '.'",
+		},
+		"inline_empty_child": {
+			".meta(type='a')#().data{date}",
+			"empty inline child selector '#()'",
+		},
+		"inline_child_no_dot": {
+			".meta(type='a')#(links(rel='b')).data{date}",
+			"selector chain must start with '.'",
+		},
+		"inline_child_unclosed": {
+			".meta(type='a')#(.links(rel='b').data{date}",
+			"mismatched parenthesis in inline child selector",
+		},
+		"trailing_hash_empty_chain": {
+			"block=.meta(type='a')#",
+			"empty child selector after '#'",
+		},
+		"trailing_hash_empty_suffix": {
+			".meta(type='a').data{date}#",
+			"empty child selector after '#'",
+		},
+		"terminal_hash_no_parent": {
+			"block=#.links(rel='b')",
+			"terminal '#' child selector requires a parent selector",
+		},
+		"suffix_inline_child": {
+			".meta(type='a').data{date}#(.links(rel='b'))",
+			"inline child selector '#(...)' is not allowed after a value spec",
+		},
+		"suffix_unexpected_content": {
+			".meta(type='a').data{date}garbage",
+			"unexpected content after value spec",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := newsdoc.ValueExtractorFromString(tc.expr)
+			if err == nil {
+				t.Fatalf("expected error for %q, got nil", tc.expr)
+			}
+
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("error for %q = %q, want substring %q",
+					tc.expr, err, tc.want)
+			}
 		})
 	}
 }
@@ -1030,6 +1089,119 @@ func TestCollectInlineChildWithTerminal(t *testing.T) {
 
 	if got := results[0]["m"].Block.Title; got != "both" {
 		t.Errorf("expected 'both', got %q", got)
+	}
+}
+
+func TestCollectInlineChildTwoGates(t *testing.T) {
+	doc := newsdoc.Document{
+		Meta: []newsdoc.Block{
+			{
+				Type:    "a",
+				Title:   "both",
+				Links:   []newsdoc.Block{{Rel: "b"}},
+				Content: []newsdoc.Block{{Type: "c"}},
+			},
+			{
+				Type:  "a",
+				Title: "only-link",
+				Links: []newsdoc.Block{{Rel: "b"}},
+			},
+			{
+				Type:    "a",
+				Title:   "only-content",
+				Content: []newsdoc.Block{{Type: "c"}},
+			},
+		},
+	}
+
+	ve, err := newsdoc.ValueExtractorFromString(
+		"m=.meta(type='a')#(.links(rel='b'))#(.content(type='c'))")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	results := ve.Collect(doc)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result (block satisfying both gates), got %d", len(results))
+	}
+
+	if got := results[0]["m"].Block.Title; got != "both" {
+		t.Errorf("expected 'both', got %q", got)
+	}
+}
+
+func TestCollectDoubleTerminalHash(t *testing.T) {
+	// A terminal '#' both in the selector chain (before the value spec) and
+	// after the value spec's '}'. Both gates must apply (regression: the
+	// second used to silently overwrite the first).
+	doc := newsdoc.Document{
+		Meta: []newsdoc.Block{
+			{
+				Type:    "a",
+				Data:    newsdoc.DataMap{"x": "kept"},
+				Links:   []newsdoc.Block{{Rel: "b"}},
+				Content: []newsdoc.Block{{Type: "c"}},
+			},
+			{
+				Type:  "a",
+				Data:  newsdoc.DataMap{"x": "only-links"},
+				Links: []newsdoc.Block{{Rel: "b"}},
+			},
+			{
+				Type:    "a",
+				Data:    newsdoc.DataMap{"x": "only-content"},
+				Content: []newsdoc.Block{{Type: "c"}},
+			},
+		},
+	}
+
+	ve, err := newsdoc.ValueExtractorFromString(
+		".meta(type='a')#.links(rel='b').data{x}#.content(type='c')")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	results := ve.Collect(doc)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result (block satisfying both gates), got %d", len(results))
+	}
+
+	if got := results[0]["x"].Value; got != "kept" {
+		t.Errorf("expected 'kept', got %q", got)
+	}
+}
+
+func TestCollectInlineChildNested(t *testing.T) {
+	// A nested gate: the parent must have a links(rel='b') child that itself
+	// has a meta(type='c') grandchild. Exercises the recursive
+	// hasMatchingChildren path (a RequireChild inside a RequireChild), which
+	// the flat multi-level gate does not. The second block has the right
+	// child but not the grandchild, so it must be rejected.
+	withGrandchild := newsdoc.Block{
+		Type:  "a",
+		Data:  newsdoc.DataMap{"x": "match"},
+		Links: []newsdoc.Block{{Rel: "b", Meta: []newsdoc.Block{{Type: "c"}}}},
+	}
+	childOnly := newsdoc.Block{
+		Type:  "a",
+		Data:  newsdoc.DataMap{"x": "no-grandchild"},
+		Links: []newsdoc.Block{{Rel: "b"}},
+	}
+	doc := newsdoc.Document{Meta: []newsdoc.Block{withGrandchild, childOnly}}
+
+	ve, err := newsdoc.ValueExtractorFromString(
+		".meta(type='a')#(.links(rel='b')#(.meta(type='c'))).data{x}")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	results := ve.Collect(doc)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result (only the block with a grandchild), got %d", len(results))
+	}
+
+	if got := results[0]["x"].Value; got != "match" {
+		t.Errorf("expected 'match', got %q", got)
 	}
 }
 

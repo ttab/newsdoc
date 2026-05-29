@@ -7,13 +7,15 @@
       },
       "Kind": "meta",
       "RequireChild": [
-        {
-          "Filter": {
-            "Attr": "rel",
-            "Value": "b"
-          },
-          "Kind": "links"
-        }
+        [
+          {
+            "Filter": {
+              "Attr": "rel",
+              "Value": "b"
+            },
+            "Kind": "links"
+          }
+        ]
       ]
     }
   ],
