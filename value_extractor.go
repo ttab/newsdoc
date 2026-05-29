@@ -16,18 +16,17 @@ type ValueExtractor struct {
 }
 
 var (
-	dataPrefix  = []byte(".data{")
-	attrPrefix  = []byte("@{")
-	bPeriod     = []byte(".")
-	bStartParen = []byte("(")
-	bEndParen   = []byte(")")
-	bEqual      = []byte("=")
-	bComma      = []byte(",")
-	bColon      = []byte(":")
-	bQMark      = []byte("?")
-	bDataDot    = []byte("data.")
-	bQuote      = byte('\'')
-	bBackslash  = byte('\\')
+	dataPrefix = []byte(".data{")
+	attrPrefix = []byte("@{")
+	bPeriod    = []byte(".")
+	bEndParen  = []byte(")")
+	bEqual     = []byte("=")
+	bComma     = []byte(",")
+	bColon     = []byte(":")
+	bQMark     = []byte("?")
+	bDataDot   = []byte("data.")
+	bQuote     = byte('\'')
+	bBackslash = byte('\\')
 )
 
 // findClosingQuote returns the index of the closing single quote in s,
@@ -69,20 +68,37 @@ func unescapeQuoted(s []byte) []byte {
 	return out
 }
 
-// indexByteOutsideQuotes returns the index of the first occurrence of c in s
-// that is not inside a single-quoted string, or -1 if not found.
-func indexByteOutsideQuotes(s []byte, c byte) int {
+// terminalHashIndex returns the index of the first '#' in s that terminates
+// the outer selector chain: at paren depth zero, outside quotes, and not
+// followed by '(' (the inline form). Returns -1 if none, or on unterminated
+// quote.
+func terminalHashIndex(s []byte) int {
+	depth := 0
+
 	for i := 0; i < len(s); i++ {
-		if s[i] == bQuote {
+		switch s[i] {
+		case bQuote:
 			end := findClosingQuote(s[i+1:])
-			if end != -1 {
-				i += end + 1
+			if end == -1 {
+				return -1
 			}
 
-			continue
-		}
+			i += end + 1
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case '#':
+			if depth != 0 {
+				continue
+			}
 
-		if s[i] == c {
+			if i+1 < len(s) && s[i+1] == '(' {
+				continue
+			}
+
 			return i
 		}
 	}
@@ -236,18 +252,35 @@ func ValueExtractorFromBytes(text []byte) (*ValueExtractor, error) {
 		}}
 	}
 
-	// Split parent and child selectors on '#', skipping '#' inside
-	// single-quoted attribute values. The '#' can appear either in the
-	// selector chain or after the value spec's closing '}'.
+	// Terminal '#' may appear in the selector chain or after the value spec's
+	// '}'. Only the terminal form is allowed after '}'.
 	var childSelector []byte
 
-	if hashIdx := indexByteOutsideQuotes(selector, '#'); hashIdx != -1 {
+	if hashIdx := terminalHashIndex(selector); hashIdx != -1 {
 		childSelector = selector[hashIdx+1:]
 		selector = selector[:hashIdx]
+
+		if len(bytes.TrimSpace(childSelector)) == 0 {
+			return nil, fmt.Errorf("empty child selector after '#'")
+		}
 	}
 
-	if hashIdx := indexByteOutsideQuotes(valueSpecSuffix, '#'); hashIdx != -1 {
-		childSelector = valueSpecSuffix[hashIdx+1:]
+	trimmedSuffix := bytes.TrimSpace(valueSpecSuffix)
+	if len(trimmedSuffix) > 0 {
+		if trimmedSuffix[0] != '#' {
+			return nil, fmt.Errorf(
+				"unexpected content after value spec: %q", trimmedSuffix)
+		}
+
+		if len(trimmedSuffix) >= 2 && trimmedSuffix[1] == '(' {
+			return nil, fmt.Errorf(
+				"inline child selector '#(...)' is not allowed after a value spec")
+		}
+
+		childSelector = trimmedSuffix[1:]
+		if len(bytes.TrimSpace(childSelector)) == 0 {
+			return nil, fmt.Errorf("empty child selector after '#'")
+		}
 	}
 
 	selectors, err := parseSelectors(selector)
@@ -723,9 +756,13 @@ func (fn *FilterNode) Matches(b Block) bool {
 }
 
 // BlockSelector selects blocks by kind and optional attribute/data filters.
+// RequireChild (the inline '#(...)' form) gates the parent on a descendant
+// chain without yielding it, unlike ValueExtractor.ChildSelectors which
+// terminates the outer chain and yields the descendants.
 type BlockSelector struct {
-	Kind   BlockKind
-	Filter *FilterNode `json:",omitempty"`
+	Kind         BlockKind
+	Filter       *FilterNode     `json:",omitempty"`
+	RequireChild []BlockSelector `json:",omitempty"`
 }
 
 func (bs BlockSelector) Iterator(blocks iter.Seq[Block]) iter.Seq[Block] {
@@ -808,7 +845,15 @@ func (bs BlockSelector) FilterBlocks(blocks []Block) []Block {
 }
 
 func (bs BlockSelector) Matches(b Block) bool {
-	return bs.Filter.Matches(b)
+	if !bs.Filter.Matches(b) {
+		return false
+	}
+
+	if len(bs.RequireChild) > 0 && !hasMatchingChildren(b, bs.RequireChild) {
+		return false
+	}
+
+	return true
 }
 
 var validAttributeKeys = map[string]struct{}{
@@ -1235,45 +1280,141 @@ func parseSelectors(s []byte) ([]BlockSelector, error) {
 	selectors := make([]BlockSelector, 0, len(parts))
 
 	for _, part := range parts {
-		if len(part) == 0 {
-			return nil, fmt.Errorf("empty selector part found (double dot '..')")
-		}
-
-		kindStr, attrsStr, foundParen := bytes.Cut(part, bStartParen)
-
-		var selector BlockSelector
-
-		// Set and validate BlockKind.
-		switch BlockKind(kindStr) {
-		case BlockKindMeta, BlockKindLinks, BlockKindContent:
-			selector.Kind = BlockKind(kindStr)
-		default:
-			return nil, fmt.Errorf("unknown block kind: %s", kindStr)
-		}
-
-		// If there are parentheses, parse the attributes inside them.
-		if foundParen {
-			if !bytes.HasSuffix(attrsStr, bEndParen) {
-				return nil, fmt.Errorf("mismatched parenthesis in selector: %q", part)
-			}
-
-			// Remove the trailing ')' before parsing.
-			attrsStr = bytes.TrimSpace(attrsStr[:len(attrsStr)-1])
-
-			if len(attrsStr) > 0 {
-				filter, err := parseAttributes(attrsStr)
-				if err != nil {
-					return nil, err
-				}
-
-				selector.Filter = filter
-			}
+		selector, err := parseSelectorPart(part)
+		if err != nil {
+			return nil, err
 		}
 
 		selectors = append(selectors, selector)
 	}
 
 	return selectors, nil
+}
+
+// parseSelectorPart parses: kind [ '(' filter ')' ] [ '#(' childChain ')' ].
+func parseSelectorPart(part []byte) (BlockSelector, error) {
+	if len(part) == 0 {
+		return BlockSelector{}, fmt.Errorf(
+			"empty selector part found (double dot '..')")
+	}
+
+	kindEnd := bytes.IndexAny(part, "(#")
+	if kindEnd == -1 {
+		kindEnd = len(part)
+	}
+
+	kindStr := part[:kindEnd]
+	rest := part[kindEnd:]
+
+	var selector BlockSelector
+
+	switch BlockKind(kindStr) {
+	case BlockKindMeta, BlockKindLinks, BlockKindContent:
+		selector.Kind = BlockKind(kindStr)
+	default:
+		return BlockSelector{}, fmt.Errorf("unknown block kind: %s", kindStr)
+	}
+
+	if len(rest) > 0 && rest[0] == '(' {
+		closeIdx := matchingCloseParen(rest)
+		if closeIdx == -1 {
+			return BlockSelector{}, fmt.Errorf(
+				"mismatched parenthesis in selector: %q", part)
+		}
+
+		filterBytes := bytes.TrimSpace(rest[1:closeIdx])
+
+		if len(filterBytes) > 0 {
+			filter, err := parseAttributes(filterBytes)
+			if err != nil {
+				return BlockSelector{}, err
+			}
+
+			selector.Filter = filter
+		}
+
+		rest = rest[closeIdx+1:]
+	}
+
+	if len(rest) > 0 {
+		if rest[0] != '#' {
+			return BlockSelector{}, fmt.Errorf(
+				"unexpected trailing content in selector %q: %q", part, rest)
+		}
+
+		childSelectors, after, err := parseInlineChildSelector(rest)
+		if err != nil {
+			return BlockSelector{}, fmt.Errorf("in selector %q: %w", part, err)
+		}
+
+		selector.RequireChild = childSelectors
+		rest = after
+	}
+
+	if len(rest) > 0 {
+		return BlockSelector{}, fmt.Errorf(
+			"unexpected trailing content in selector %q: %q", part, rest)
+	}
+
+	return selector, nil
+}
+
+// parseInlineChildSelector parses '#(child)' at the start of rest (which
+// must begin with '#'), returning the parsed chain and the bytes after ')'.
+func parseInlineChildSelector(rest []byte) ([]BlockSelector, []byte, error) {
+	if len(rest) < 2 || rest[1] != '(' {
+		return nil, nil, fmt.Errorf("inline child selector requires '#(...)'")
+	}
+
+	innerCloseIdx := matchingCloseParen(rest[1:])
+	if innerCloseIdx == -1 {
+		return nil, nil, fmt.Errorf("mismatched parenthesis in inline child selector")
+	}
+
+	closeIdx := 1 + innerCloseIdx
+
+	inner := bytes.TrimSpace(rest[2:closeIdx])
+	if len(inner) == 0 {
+		return nil, nil, fmt.Errorf("empty inline child selector '#()'")
+	}
+
+	childSelectors, err := parseSelectors(inner)
+	if err != nil {
+		return nil, nil, fmt.Errorf("inline child selectors: %w", err)
+	}
+
+	return childSelectors, rest[closeIdx+1:], nil
+}
+
+// matchingCloseParen returns the index of the ')' matching the '(' at s[0],
+// or -1 if none (or on unterminated quote).
+func matchingCloseParen(s []byte) int {
+	if len(s) == 0 || s[0] != '(' {
+		return -1
+	}
+
+	depth := 0
+
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case bQuote:
+			end := findClosingQuote(s[i+1:])
+			if end == -1 {
+				return -1
+			}
+
+			i += end + 1
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+
+	return -1
 }
 
 // splitValueSpec splits a raw value spec (everything after the opening '{')

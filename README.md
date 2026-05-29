@@ -240,6 +240,14 @@ Child selectors can be chained to match deeper descendants, and support the same
 assignment=.meta(type='core/assignment')#.links(rel='deliverable' data.status='active'):label
 ```
 
+The terminal `#` form above consumes the rest of the expression as a child chain, so the outer selector cannot continue past it. To constrain a single selector by its descendants while still navigating further, attach an inline `#(...)` clause directly to that selector:
+
+```
+.meta(type='core/assignment')#(.links(rel='deliverable')).meta(type='tt/slugline')@{value}
+```
+
+This matches `core/assignment` meta blocks that have a `deliverable` link, then navigates into each match's `tt/slugline` meta block and extracts the `value` attribute. The inline form can appear on any selector in the chain and supports the same nested filters as the terminal form.
+
 ### Extracting data values
 
 Use `.data{}` to extract values from the matched blocks' data maps. Values are space-separated (commas are also accepted):

@@ -30,6 +30,18 @@ func TestValueExtractorParse(t *testing.T) {
 		"data_multi_mixed": ".meta(type='core/event' data.date?? data.status='confirmed').data{date}",
 		"child_selector":   "assignment=.meta(type='core/assignment')#.links(rel='deliverable' uuid='abc'):label",
 
+		// Inline per-selector child filter '#(...)'.
+		"inline_child_then_attrs":      ".meta(type='a')#(.links(rel='b')).meta(type='c')@{value}",
+		"inline_child_then_data":       ".meta(type='a')#(.links(rel='b')).meta(type='c').data{x}",
+		"inline_child_end_of_chain":    ".meta(type='a')#(.links(rel='b')).data{x}",
+		"inline_child_multiple":        ".meta(type='a')#(.links(rel='b')).meta(type='c')#(.content(type='d')).data{x}",
+		"inline_child_with_terminal":   ".meta(type='a')#(.links(rel='b')).data{x}#.links(rel='d')",
+		"inline_child_nested":          ".meta(type='a')#(.links(rel='b')#(.meta(type='c'))).data{x}",
+		"inline_child_multi_level":     ".meta(type='a')#(.meta(type='b').links(rel='c')).data{x}",
+		"inline_child_with_name_annot": "pick=.meta(type='a')#(.links(rel='b')):annot",
+		"inline_child_quoted_paren":    ".meta(type='a')#(.links(rel='b)c')).data{x}",
+		"inline_child_quoted_hash":     ".meta(type='a')#(.links(rel='b#c')).data{x}",
+
 		// Special characters and sequences inside quoted strings.
 		"quoted_hash_in_type":          ".meta(type='core/thing#v1').data{date}",
 		"quoted_hash_in_block":         "items=.meta(type='core/tagged#v2').links(rel='item')",
@@ -102,6 +114,13 @@ func TestValueExtractorParseErrors(t *testing.T) {
 		"attr_no_equals":              ".meta(type='a' noequals).data{date}",
 		"open_paren_eof":              "block=.meta(type='a' ()",
 		"child_selector_no_dot":       "block=.meta(type='a')#links(rel='b')",
+		"inline_empty_child":          ".meta(type='a')#().data{date}",
+		"inline_child_no_dot":         ".meta(type='a')#(links(rel='b')).data{date}",
+		"inline_child_unclosed":       ".meta(type='a')#(.links(rel='b').data{date}",
+		"trailing_hash_empty_chain":   "block=.meta(type='a')#",
+		"trailing_hash_empty_suffix":  ".meta(type='a').data{date}#",
+		"suffix_inline_child":         ".meta(type='a').data{date}#(.links(rel='b'))",
+		"suffix_unexpected_content":   ".meta(type='a').data{date}garbage",
 		"combined_empty_attr_values":  ".meta(type='a')@{}.data{date}",
 		"combined_empty_data_values":  ".meta(type='a')@{title}.data{}",
 		"combined_missing_close_attr": ".meta(type='a')@{title.data{date",
@@ -841,6 +860,248 @@ func TestCollectDataFilterExists(t *testing.T) {
 	results := ve.Collect(doc)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result (only block with status key), got %d", len(results))
+	}
+}
+
+func TestCollectInlineChildSelector(t *testing.T) {
+	doc := newsdoc.Document{
+		Meta: []newsdoc.Block{
+			{
+				Type: "core/assignment",
+				Links: []newsdoc.Block{
+					{Type: "core/article", Rel: "deliverable"},
+				},
+				Meta: []newsdoc.Block{
+					{Type: "tt/slugline", Value: "slug-A"},
+				},
+			},
+			{
+				Type: "core/assignment",
+				Links: []newsdoc.Block{
+					{Type: "core/article", Rel: "other"},
+				},
+				Meta: []newsdoc.Block{
+					{Type: "tt/slugline", Value: "slug-B"},
+				},
+			},
+		},
+	}
+
+	ve, err := newsdoc.ValueExtractorFromString(
+		".meta(type='core/assignment')#(.links(rel='deliverable')).meta(type='tt/slugline')@{value}")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	results := ve.Collect(doc)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result (slugline from assignment with deliverable), got %d", len(results))
+	}
+
+	if got := results[0]["value"].Value; got != "slug-A" {
+		t.Errorf("expected 'slug-A', got %q", got)
+	}
+
+	veNone, err := newsdoc.ValueExtractorFromString(
+		".meta(type='core/assignment')#(.links(rel='nonesuch')).meta(type='tt/slugline')@{value}")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if got := veNone.Collect(doc); len(got) != 0 {
+		t.Fatalf("expected 0 results when inline filter matches nothing, got %d", len(got))
+	}
+}
+
+func TestCollectInlineChildEndOfChain(t *testing.T) {
+	doc := newsdoc.Document{
+		Meta: []newsdoc.Block{
+			{
+				Type:  "a",
+				Data:  newsdoc.DataMap{"x": "kept"},
+				Links: []newsdoc.Block{{Rel: "b"}},
+			},
+			{
+				Type:  "a",
+				Data:  newsdoc.DataMap{"x": "filtered"},
+				Links: []newsdoc.Block{{Rel: "other"}},
+			},
+		},
+	}
+
+	ve, err := newsdoc.ValueExtractorFromString(
+		".meta(type='a')#(.links(rel='b')).data{x}")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	results := ve.Collect(doc)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+
+	if got := results[0]["x"].Value; got != "kept" {
+		t.Errorf("expected 'kept', got %q", got)
+	}
+}
+
+func TestCollectInlineChildMultiLevel(t *testing.T) {
+	doc := newsdoc.Document{
+		Meta: []newsdoc.Block{
+			{
+				Type: "a",
+				Data: newsdoc.DataMap{"x": "matches"},
+				Meta: []newsdoc.Block{
+					{
+						Type:  "b",
+						Links: []newsdoc.Block{{Rel: "c"}},
+					},
+				},
+			},
+			{
+				Type: "a",
+				Data: newsdoc.DataMap{"x": "shallow-b-only"},
+				Meta: []newsdoc.Block{{Type: "b"}},
+			},
+			{
+				Type: "a",
+				Data: newsdoc.DataMap{"x": "wrong-meta-type"},
+				Meta: []newsdoc.Block{
+					{
+						Type:  "z",
+						Links: []newsdoc.Block{{Rel: "c"}},
+					},
+				},
+			},
+		},
+	}
+
+	ve, err := newsdoc.ValueExtractorFromString(
+		".meta(type='a')#(.meta(type='b').links(rel='c')).data{x}")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	results := ve.Collect(doc)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+
+	if got := results[0]["x"].Value; got != "matches" {
+		t.Errorf("expected 'matches', got %q", got)
+	}
+}
+
+func TestCollectInlineChildWithTerminal(t *testing.T) {
+	doc := newsdoc.Document{
+		Meta: []newsdoc.Block{
+			{
+				Type:  "a",
+				Title: "both",
+				Links: []newsdoc.Block{{Rel: "b"}, {Rel: "d"}},
+			},
+			{
+				Type:  "a",
+				Title: "only-inline",
+				Links: []newsdoc.Block{{Rel: "b"}},
+			},
+			{
+				Type:  "a",
+				Title: "only-terminal",
+				Links: []newsdoc.Block{{Rel: "d"}},
+			},
+			{
+				Type:  "a",
+				Title: "neither",
+			},
+		},
+	}
+
+	ve, err := newsdoc.ValueExtractorFromString(
+		"m=.meta(type='a')#(.links(rel='b'))#.links(rel='d')")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	results := ve.Collect(doc)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result (block satisfying both gates), got %d", len(results))
+	}
+
+	if got := results[0]["m"].Block.Title; got != "both" {
+		t.Errorf("expected 'both', got %q", got)
+	}
+}
+
+func TestCollectInlineChildOnLinksOuter(t *testing.T) {
+	doc := newsdoc.Document{
+		Links: []newsdoc.Block{
+			{
+				Rel:   "associated",
+				Title: "with-meta",
+				Meta:  []newsdoc.Block{{Type: "core/note"}},
+			},
+			{
+				Rel:   "associated",
+				Title: "without-meta",
+			},
+		},
+	}
+
+	ve, err := newsdoc.ValueExtractorFromString(
+		"link=.links(rel='associated')#(.meta(type='core/note'))")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	results := ve.Collect(doc)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+
+	if got := results[0]["link"].Block.Title; got != "with-meta" {
+		t.Errorf("expected 'with-meta', got %q", got)
+	}
+}
+
+func TestCollectInlineChildWithDataFilter(t *testing.T) {
+	doc := newsdoc.Document{
+		Meta: []newsdoc.Block{
+			{
+				Type:  "a",
+				Title: "active",
+				Links: []newsdoc.Block{
+					{Rel: "b", Data: newsdoc.DataMap{"status": "ok"}},
+				},
+			},
+			{
+				Type:  "a",
+				Title: "inactive",
+				Links: []newsdoc.Block{
+					{Rel: "b", Data: newsdoc.DataMap{"status": "stale"}},
+				},
+			},
+			{
+				Type:  "a",
+				Title: "no-status",
+				Links: []newsdoc.Block{{Rel: "b"}},
+			},
+		},
+	}
+
+	ve, err := newsdoc.ValueExtractorFromString(
+		"m=.meta(type='a')#(.links(rel='b' data.status='ok'))")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	results := ve.Collect(doc)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result (only 'active' matches), got %d", len(results))
+	}
+
+	if got := results[0]["m"].Block.Title; got != "active" {
+		t.Errorf("expected 'active', got %q", got)
 	}
 }
 
