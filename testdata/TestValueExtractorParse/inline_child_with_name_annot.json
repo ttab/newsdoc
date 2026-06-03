@@ -1,0 +1,29 @@
+{
+  "Selectors": [
+    {
+      "Filter": {
+        "Attr": "type",
+        "Value": "a"
+      },
+      "Kind": "meta",
+      "RequireChild": [
+        [
+          {
+            "Filter": {
+              "Attr": "rel",
+              "Value": "b"
+            },
+            "Kind": "links"
+          }
+        ]
+      ]
+    }
+  ],
+  "ValueKind": "block",
+  "Values": [
+    {
+      "Annotation": "annot",
+      "Name": "pick"
+    }
+  ]
+}

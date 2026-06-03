@@ -1,0 +1,35 @@
+{
+  "Selectors": [
+    {
+      "Filter": {
+        "Attr": "type",
+        "Value": "a"
+      },
+      "Kind": "meta",
+      "RequireChild": [
+        [
+          {
+            "Filter": {
+              "Attr": "type",
+              "Value": "b"
+            },
+            "Kind": "meta"
+          },
+          {
+            "Filter": {
+              "Attr": "rel",
+              "Value": "c"
+            },
+            "Kind": "links"
+          }
+        ]
+      ]
+    }
+  ],
+  "ValueKind": "data",
+  "Values": [
+    {
+      "Name": "x"
+    }
+  ]
+}
